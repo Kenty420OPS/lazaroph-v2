@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 interface Product {
@@ -79,26 +78,26 @@ export default function ShopPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-gray-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-black text-neutral-100 flex flex-col font-sans selection:bg-white selection:text-black">
       {/* Top Header / Navigation */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-[#0b0f19]/80 border-b border-gray-800/80">
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-black/90 border-b border-neutral-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/shop" className="flex items-center space-x-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              <span className="text-white font-extrabold text-lg">L</span>
+            <div className="w-9 h-9 rounded-xl bg-white text-black font-black flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+              <span className="text-lg">L</span>
             </div>
             <div>
-              <span className="text-xl font-bold tracking-tight text-white group-hover:text-blue-400 transition-colors">
-                LAZAROPH <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">v2</span>
+              <span className="text-xl font-bold tracking-tight text-white group-hover:text-neutral-300 transition-colors">
+                LAZAROPH <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">v2</span>
               </span>
-              <p className="text-[10px] text-gray-400 hidden sm:block">Authentic Sportswear & Lifestyle</p>
+              <p className="text-[10px] text-neutral-400 hidden sm:block">Authentic Sportswear & Lifestyle</p>
             </div>
           </Link>
 
           <div className="flex items-center gap-4">
             <Link
               href="/shop"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-md shadow-blue-600/30"
+              className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm"
             >
               Public Catalog
             </Link>
@@ -109,32 +108,32 @@ export default function ShopPage() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Banner Hero */}
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-blue-900/40 via-indigo-900/20 to-purple-900/40 border border-gray-800 p-6 sm:p-10 mb-8 backdrop-blur-sm">
+        <div className="relative rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 p-6 sm:p-10 mb-8 backdrop-blur-sm">
           <div className="max-w-2xl">
-            <span className="inline-block text-xs font-semibold tracking-wider uppercase text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded-full border border-cyan-400/20 mb-3">
+            <span className="inline-block text-xs font-bold tracking-wider uppercase text-neutral-300 bg-neutral-800 px-3 py-1 rounded-full border border-neutral-700 mb-3">
               Official Storefront
             </span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase">
               Authentic Sportswear & Premium Lifestyle
             </h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-300">
+            <p className="mt-2 text-sm sm:text-base text-neutral-400">
               Browse our curated collection of original sneakers, premium bags, and luxury watches directly sourced and verified.
             </p>
           </div>
         </div>
 
         {/* Filter Controls & Search */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-gray-900/50 p-4 rounded-xl border border-gray-800/80">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
           {/* Category Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
                   selectedCategory === cat
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
-                    : "bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    ? "bg-white text-black shadow-md"
+                    : "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
                 }`}
               >
                 {cat}
@@ -150,10 +149,10 @@ export default function ShopPage() {
                 placeholder="Search catalog..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-black border border-neutral-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
               />
               <svg
-                className="w-4 h-4 text-gray-500 absolute left-3 top-2.5"
+                className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -165,7 +164,7 @@ export default function ShopPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+              className="bg-black border border-neutral-800 rounded-lg px-3 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-white"
             >
               <option value="default">Sort by: Default</option>
               <option value="price-low">Price: Low to High</option>
@@ -179,36 +178,36 @@ export default function ShopPage() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-gray-900/60 rounded-xl p-4 border border-gray-800 animate-pulse space-y-3">
-                <div className="w-full h-48 bg-gray-800 rounded-lg"></div>
-                <div className="h-4 bg-gray-800 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-800 rounded w-1/2"></div>
+              <div key={i} className="bg-neutral-900/60 rounded-xl p-4 border border-neutral-800 animate-pulse space-y-3">
+                <div className="w-full h-48 bg-neutral-800 rounded-lg"></div>
+                <div className="h-4 bg-neutral-800 rounded w-3/4"></div>
+                <div className="h-4 bg-neutral-800 rounded w-1/2"></div>
               </div>
             ))}
           </div>
         ) : error ? (
-          <div className="text-center py-16 bg-red-950/20 border border-red-900/50 rounded-2xl p-6">
-            <p className="text-red-400 font-semibold mb-2">Error loading products</p>
-            <p className="text-xs text-gray-400 mb-4">{error}</p>
+          <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+            <p className="text-white font-semibold mb-2">Error loading products</p>
+            <p className="text-xs text-neutral-400 mb-4">{error}</p>
             <button
               onClick={fetchProducts}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-500 transition-colors"
+              className="px-4 py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-neutral-200 transition-colors"
             >
               Try Again
             </button>
           </div>
         ) : sortedProducts.length === 0 ? (
-          <div className="text-center py-20 bg-gray-900/30 rounded-2xl border border-gray-800">
+          <div className="text-center py-20 bg-neutral-900/40 rounded-2xl border border-neutral-800">
             <svg
-              className="w-12 h-12 text-gray-600 mx-auto mb-3"
+              className="w-12 h-12 text-neutral-600 mx-auto mb-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
-            <p className="text-gray-300 font-medium text-sm">No products found in Firestore</p>
-            <p className="text-xs text-gray-500 mt-1">Try selecting a different category or search term.</p>
+            <p className="text-neutral-300 font-medium text-sm">No products found in Firestore</p>
+            <p className="text-xs text-neutral-500 mt-1">Try selecting a different category or search term.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -220,10 +219,10 @@ export default function ShopPage() {
               return (
                 <div
                   key={product.id}
-                  className="group bg-gray-900/60 rounded-xl border border-gray-800/80 overflow-hidden hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 flex flex-col"
+                  className="group bg-neutral-900/60 rounded-xl border border-neutral-800 overflow-hidden hover:border-neutral-500 hover:shadow-xl hover:shadow-neutral-900 transition-all duration-300 flex flex-col"
                 >
                   {/* Product Image Container */}
-                  <div className="relative w-full h-52 bg-gray-950 flex items-center justify-center overflow-hidden">
+                  <div className="relative w-full h-52 bg-black flex items-center justify-center overflow-hidden">
                     {displayImage && displayImage.startsWith("http") ? (
                       <img
                         src={displayImage}
@@ -234,16 +233,16 @@ export default function ShopPage() {
                         }}
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center text-gray-600">
+                      <div className="flex flex-col items-center justify-center text-neutral-600">
                         <svg className="w-12 h-12 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span className="text-[10px] text-gray-500">LAZAROPH Genuine Product</span>
+                        <span className="text-[10px] text-neutral-500">LAZAROPH Genuine Product</span>
                       </div>
                     )}
 
                     {/* Category Badge */}
-                    <span className="absolute top-3 left-3 bg-gray-900/80 backdrop-blur-md border border-gray-700/60 text-blue-400 text-[10px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md border border-neutral-700 text-neutral-300 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
                       {product.category || "Sneakers"}
                     </span>
                   </div>
@@ -252,23 +251,23 @@ export default function ShopPage() {
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
                       {product.brand && (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-1">
                           {product.brand}
                         </p>
                       )}
-                      <h3 className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors line-clamp-2">
+                      <h3 className="text-sm font-semibold text-white group-hover:text-neutral-300 transition-colors line-clamp-2">
                         {product.name || product.title || "Untitled Product"}
                       </h3>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-gray-800/60 flex items-center justify-between">
+                    <div className="mt-4 pt-3 border-t border-neutral-800 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-gray-400 block">Price</span>
+                        <span className="text-[10px] text-neutral-400 block uppercase font-medium">Price</span>
                         <span className="text-base font-extrabold text-white">{formattedPrice}</span>
                       </div>
 
                       <button
-                        className="px-3 py-1.5 rounded-lg bg-blue-600/90 hover:bg-blue-500 text-white text-xs font-medium transition-colors shadow-sm shadow-blue-500/20"
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-bold transition-colors shadow-sm"
                         onClick={() => alert(`Selected product: ${product.name || product.title}`)}
                       >
                         View Product
@@ -283,7 +282,7 @@ export default function ShopPage() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-gray-800 bg-[#080b12] py-6 text-center text-xs text-gray-500">
+      <footer className="mt-auto border-t border-neutral-800 bg-black py-6 text-center text-xs text-neutral-500">
         <p>© 2026 LAZAROPH — Authentic Sportswear & Lifestyle Retail Platform. All rights reserved.</p>
       </footer>
     </div>
