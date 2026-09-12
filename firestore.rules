@@ -14,7 +14,11 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
-    // Public READ for products, brands, and categories; WRITE requires Admin role
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Public READ for product catalog (products, brands, categories); WRITE requires Admin role
     match /products/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -30,9 +34,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Default rule for all other documents
+    // 2. Orders: Users can read/write their own orders; Admin can read/write all
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // 3. User profiles: Users can read/write their own document; Admin can read/write all
+    match /users/{userId} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // 4. Strict default fallback: All unhandled collections are ADMIN-ONLY
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAdmin();
     }
   }
 }
