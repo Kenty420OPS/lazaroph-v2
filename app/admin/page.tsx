@@ -82,7 +82,7 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    verifyAndLoad(adminKey);
+    verifyAndLoad(adminKey.trim());
   };
 
   const verifyAndLoad = async (keyToTest: string) => {

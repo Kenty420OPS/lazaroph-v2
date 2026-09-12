@@ -1,8 +1,12 @@
 import { cookies } from "next/headers";
 
-export const ADMIN_SECRET_KEY = process.env.ADMIN_KEY || "lazaroph-admin-secret-2026";
+export function getAdminSecretKey(): string {
+  return (process.env.ADMIN_KEY || "lazaroph-admin-secret-2026").trim();
+}
 
 export function verifyAdminRequest(request: Request): { isAdmin: boolean; error?: string } {
+  const expectedKey = getAdminSecretKey();
+
   // 1. Check x-admin-key or Authorization header
   const adminKeyHeader = request.headers.get("x-admin-key");
   const authHeader = request.headers.get("Authorization");
@@ -27,14 +31,14 @@ export function verifyAdminRequest(request: Request): { isAdmin: boolean; error?
     }
   }
 
-  if (!token) {
+  if (!token || !token.trim()) {
     return {
       isAdmin: false,
       error: "Unauthorized: Missing admin authentication credentials (header or cookie required)",
     };
   }
 
-  if (token === ADMIN_SECRET_KEY) {
+  if (token.trim() === expectedKey) {
     return { isAdmin: true };
   }
 
@@ -43,3 +47,4 @@ export function verifyAdminRequest(request: Request): { isAdmin: boolean; error?
     error: "Forbidden: Invalid admin key provided",
   };
 }
+
