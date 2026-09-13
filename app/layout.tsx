@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "LAZAROPH v2",
-  description: "Authentic Sportswear & Lifestyle Retail Platform",
+  description: "AUTHENTIC. LEGIT. BELOW MARKET PRICE.",
 };
 
 export default function RootLayout({
@@ -17,3 +17,4 @@ export default function RootLayout({
     </html>
   );
 }
+
