@@ -9,7 +9,7 @@ export default function Home() {
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white uppercase">
-          Authentic Sportswear & Lifestyle
+          AUTHENTIC. LEGIT. BELOW MARKET PRICE.
         </h1>
 
         <p className="text-base sm:text-lg text-neutral-400 font-normal">
@@ -31,3 +31,4 @@ export default function Home() {
     </main>
   );
 }
+

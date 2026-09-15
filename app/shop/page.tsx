@@ -90,7 +90,7 @@ export default function ShopPage() {
               <span className="text-xl font-bold tracking-tight text-white group-hover:text-neutral-300 transition-colors">
                 LAZAROPH <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">v2</span>
               </span>
-              <p className="text-[10px] text-neutral-400 hidden sm:block">Authentic Sportswear & Lifestyle</p>
+              <p className="text-[10px] text-neutral-400 hidden sm:block">AUTHENTIC. LEGIT. BELOW MARKET PRICE.</p>
             </div>
           </Link>
 
@@ -114,7 +114,7 @@ export default function ShopPage() {
               Official Storefront
             </span>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase">
-              Authentic Sportswear & Premium Lifestyle
+              AUTHENTIC. LEGIT. BELOW MARKET PRICE.
             </h1>
             <p className="mt-2 text-sm sm:text-base text-neutral-400">
               Browse our curated collection of original sneakers, premium bags, and luxury watches directly sourced and verified.
@@ -283,8 +283,9 @@ export default function ShopPage() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-neutral-800 bg-black py-6 text-center text-xs text-neutral-500">
-        <p>© 2026 LAZAROPH — Authentic Sportswear & Lifestyle Retail Platform. All rights reserved.</p>
+        <p>© 2026 LAZAROPH — AUTHENTIC. LEGIT. BELOW MARKET PRICE. Retail Platform. All rights reserved.</p>
       </footer>
     </div>
   );
 }
+
