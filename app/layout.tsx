@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: "AUTHENTIC. LEGIT. BELOW MARKET PRICE.",
 };
 
+import { CartProvider } from "@/contexts/CartContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -13,7 +15,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CartProvider>
+          {children}
+        </CartProvider>
+      </body>
     </html>
   );
 }
