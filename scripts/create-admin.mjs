@@ -22,12 +22,12 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 async function run() {
-  const email = "admin@lazarophstore.com";
-  const password = process.argv[2];
+  const email = process.argv[2];
+  const password = process.argv[3];
 
-  if (!password) {
-    console.error("? Please provide a password as an argument.");
-    console.error("Usage: node scripts/create-admin.mjs <your-password>");
+  if (!email || !password) {
+    console.error("? Please provide an email and password as arguments.");
+    console.error("Usage: node scripts/create-admin.mjs <email> <password>");
     process.exit(1);
   }
 
