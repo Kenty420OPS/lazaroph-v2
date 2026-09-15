@@ -1,58 +1,18 @@
 import { NextResponse } from "next/server";
-import { db, storage } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 
-export const dynamic = "force-dynamic";
-
-// GET /api/admin/products - List products (Admin authorized only)
-export async function GET(request: Request) {
-  const auth = verifyAdminRequest(request);
-  if (!auth.isAdmin) {
-    return NextResponse.json(
-      { success: false, error: auth.error || "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  try {
-    const querySnapshot = await getDocs(collection(db, "products"));
-    const products: any[] = [];
-    querySnapshot.forEach((docSnap) => {
-      products.push({
-        id: docSnap.id,
-        ...docSnap.data(),
-      });
-    });
-
-    return NextResponse.json({
-      success: true,
-      count: products.length,
-      products,
-    });
-  } catch (error: any) {
-    console.error("GET /api/admin/products error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch products" },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/admin/products - Create product (Admin authorized only)
-// Coordinated single-route handler: Image upload to Firebase Storage happens first;
-// if image upload fails, Firestore product document is NOT saved.
+// POST /api/admin/products - Add a new product (Admin authorized only)
 export async function POST(request: Request) {
-  const auth = verifyAdminRequest(request);
-  if (!auth.isAdmin) {
-    return NextResponse.json(
-      { success: false, error: auth.error || "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
   try {
+    const auth = await verifyAdminRequest(request);
+    if (!auth.isAdmin) {
+      return NextResponse.json(
+        { success: false, error: auth.error || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const contentType = request.headers.get("content-type") || "";
     let name = "";
     let brand = "";
@@ -98,8 +58,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 1: Coordinated Image Upload to Storage
-    // If simulateUploadFailure is set or image upload fails, stop immediately!
     let finalImageUrl = imageUrl;
 
     if (simulateUploadFailure) {
@@ -117,16 +75,20 @@ export async function POST(request: Request) {
       try {
         const buffer = Buffer.from(await imageFile.arrayBuffer());
         const safeFileName = `${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const storageRef = ref(storage, `products/${safeFileName}`);
-
-        await uploadBytes(storageRef, buffer, {
-          contentType: imageFile.type || "image/jpeg",
+        
+        const bucket = adminStorage.bucket();
+        console.log('[Upload] Using Bucket:', bucket.name);
+        
+        const file = bucket.file(`products/${safeFileName}`);
+        
+        await file.save(buffer, {
+          metadata: { contentType: imageFile.type || "image/jpeg" },
         });
-
-        finalImageUrl = await getDownloadURL(storageRef);
+        
+        // Use standard Firebase Storage public URL format instead of makePublic()
+        finalImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(`products/${safeFileName}`)}?alt=media`;
       } catch (uploadError: any) {
         console.error("Storage upload failed in POST /api/admin/products:", uploadError);
-        // CRITICAL REQUIREMENT: Do NOT save to Firestore if upload fails!
         return NextResponse.json(
           {
             success: false,
@@ -137,7 +99,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 2: Save product to Firestore ONLY after successful upload (or no file provided)
+    // Step 2: Save product to Firestore using Admin SDK to bypass security rules
     const productPayload = {
       name: name.trim(),
       title: name.trim(),
@@ -152,7 +114,7 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString(),
     };
 
-    const docRef = await addDoc(collection(db, "products"), productPayload);
+    const docRef = await adminDb.collection("products").add(productPayload);
 
     return NextResponse.json({
       success: true,
@@ -162,10 +124,10 @@ export async function POST(request: Request) {
         ...productPayload,
       },
     });
-  } catch (error: any) {
-    console.error("POST /api/admin/products error:", error);
+  } catch (globalError: any) {
+    console.error("POST /api/admin/products global error:", globalError);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to create product" },
+      { success: false, error: globalError.message || "Failed to create product" },
       { status: 500 }
     );
   }
@@ -173,15 +135,15 @@ export async function POST(request: Request) {
 
 // PUT /api/admin/products - Edit product (Admin authorized only)
 export async function PUT(request: Request) {
-  const auth = verifyAdminRequest(request);
-  if (!auth.isAdmin) {
-    return NextResponse.json(
-      { success: false, error: auth.error || "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
   try {
+    const auth = await verifyAdminRequest(request);
+    if (!auth.isAdmin) {
+      return NextResponse.json(
+        { success: false, error: auth.error || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const contentType = request.headers.get("content-type") || "";
     let id = "";
     let name = "";
@@ -245,13 +207,15 @@ export async function PUT(request: Request) {
       try {
         const buffer = Buffer.from(await imageFile.arrayBuffer());
         const safeFileName = `${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const storageRef = ref(storage, `products/${safeFileName}`);
-
-        await uploadBytes(storageRef, buffer, {
-          contentType: imageFile.type || "image/jpeg",
+        
+        const bucket = adminStorage.bucket();
+        const file = bucket.file(`products/${safeFileName}`);
+        
+        await file.save(buffer, {
+          metadata: { contentType: imageFile.type || "image/jpeg" },
         });
-
-        finalImageUrl = await getDownloadURL(storageRef);
+        
+        finalImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(`products/${safeFileName}`)}?alt=media`;
       } catch (uploadError: any) {
         return NextResponse.json(
           {
@@ -263,7 +227,6 @@ export async function PUT(request: Request) {
       }
     }
 
-    const productRef = doc(db, "products", id);
     const updatePayload: any = {
       name: name.trim(),
       title: name.trim(),
@@ -280,17 +243,18 @@ export async function PUT(request: Request) {
       updatePayload.mainImageUrl = finalImageUrl;
     }
 
-    await updateDoc(productRef, updatePayload);
+    // Use Admin SDK to update bypassing rules
+    await adminDb.collection("products").doc(id).update(updatePayload);
 
     return NextResponse.json({
       success: true,
       message: "Product updated successfully",
       product: { id, ...updatePayload },
     });
-  } catch (error: any) {
-    console.error("PUT /api/admin/products error:", error);
+  } catch (globalError: any) {
+    console.error("PUT /api/admin/products global error:", globalError);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to update product" },
+      { success: false, error: globalError.message || "Failed to update product" },
       { status: 500 }
     );
   }
@@ -298,15 +262,15 @@ export async function PUT(request: Request) {
 
 // DELETE /api/admin/products - Delete product (Admin authorized only)
 export async function DELETE(request: Request) {
-  const auth = verifyAdminRequest(request);
-  if (!auth.isAdmin) {
-    return NextResponse.json(
-      { success: false, error: auth.error || "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
   try {
+    const auth = await verifyAdminRequest(request);
+    if (!auth.isAdmin) {
+      return NextResponse.json(
+        { success: false, error: auth.error || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     let id = searchParams.get("id");
 
@@ -324,16 +288,17 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await deleteDoc(doc(db, "products", id));
+    // Use Admin SDK to delete bypassing rules
+    await adminDb.collection("products").doc(id).delete();
 
     return NextResponse.json({
       success: true,
       message: `Product ${id} deleted successfully`,
     });
-  } catch (error: any) {
-    console.error("DELETE /api/admin/products error:", error);
+  } catch (globalError: any) {
+    console.error("DELETE /api/admin/products global error:", globalError);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to delete product" },
+      { success: false, error: globalError.message || "Failed to delete product" },
       { status: 500 }
     );
   }

@@ -1,50 +1,36 @@
-import { cookies } from "next/headers";
+import { adminAuth, adminDb } from "./firebase-admin";
 
-export function getAdminSecretKey(): string {
-  return (process.env.ADMIN_KEY || "lazaroph-admin-secret-2026").trim();
-}
-
-export function verifyAdminRequest(request: Request): { isAdmin: boolean; error?: string } {
-  const expectedKey = getAdminSecretKey();
-
-  // 1. Check x-admin-key or Authorization header
-  const adminKeyHeader = request.headers.get("x-admin-key");
-  const authHeader = request.headers.get("Authorization");
-
-  let token = "";
-  if (adminKeyHeader) {
-    token = adminKeyHeader;
-  } else if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-
-  // 2. Fallback to cookie check for SSR / browser requests
-  if (!token) {
-    try {
-      const cookieStore = cookies();
-      const cookieVal = cookieStore.get("admin_token")?.value;
-      if (cookieVal) {
-        token = cookieVal;
-      }
-    } catch (e) {
-      // cookies() may throw if context doesn't support headers/cookies
+export async function verifyAdminRequest(request: Request): Promise<{ isAdmin: boolean; error?: string; uid?: string }> {
+  try {
+    if (!adminAuth || !adminDb) return { isAdmin: false, error: "Firebase Admin is not initialized. Please check your .env.local Service Account credentials." };
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return { isAdmin: false, error: "Unauthorized: Missing or invalid Authorization header" };
     }
-  }
 
-  if (!token || !token.trim()) {
-    return {
-      isAdmin: false,
-      error: "Unauthorized: Missing admin authentication credentials (header or cookie required)",
-    };
-  }
+    const token = authHeader.substring(7);
+    if (!token) {
+      return { isAdmin: false, error: "Unauthorized: Empty token" };
+    }
 
-  if (token.trim() === expectedKey) {
-    return { isAdmin: true };
-  }
+    // Verify token
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const uid = decodedToken.uid;
 
-  return {
-    isAdmin: false,
-    error: "Forbidden: Invalid admin key provided",
-  };
+    // Check user role in Firestore
+    const userDoc = await adminDb.collection('users').doc(uid).get();
+    if (!userDoc.exists) {
+      return { isAdmin: false, error: "Forbidden: User document not found" };
+    }
+
+    const userData = userDoc.data();
+    if (userData?.role !== 'admin') {
+      return { isAdmin: false, error: "Forbidden: User does not have admin privileges" };
+    }
+
+    return { isAdmin: true, uid };
+  } catch (error: any) {
+    console.error("verifyAdminRequest error:", error);
+    return { isAdmin: false, error: "Unauthorized: " + (error.message || "Invalid token") };
+  }
 }
-
