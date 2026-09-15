@@ -1,11 +1,11 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getStorage, Storage } from 'firebase-admin/storage';
 
-let adminAuth;
-let adminDb;
-let adminStorage;
+let adminAuth!: Auth;
+let adminDb!: Firestore;
+let adminStorage!: Storage;
 
 try {
   const apps = getApps();

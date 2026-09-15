@@ -309,7 +309,7 @@ export default function AdminPage() {
                       </div>
                       <div>
                         <h3 className="text-xs font-bold text-white">{p.name || p.title}</h3>
-                        <p className="text-xs font-bold text-neutral-300 mt-1">?{Number(p.price || 0).toLocaleString("en-PH")}</p>
+                        <p className="text-xs font-bold text-neutral-300 mt-1">₱{Number(p.price || 0).toLocaleString("en-PH")}</p>
                       </div>
                     </div>
                     <div className="flex space-x-2">
