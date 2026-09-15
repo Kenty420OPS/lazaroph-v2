@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useCart } from "@/contexts/CartContext";
 
 interface Product {
   id: string;
@@ -21,6 +22,7 @@ interface Product {
 const CATEGORIES = ["All", "Sneakers", "Bags & Luggage", "Watches"];
 
 export default function ShopPage() {
+  const { addToCart } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -268,9 +270,17 @@ export default function ShopPage() {
 
                       <button
                         className="px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-bold transition-colors shadow-sm"
-                        onClick={() => alert(`Selected product: ${product.name || product.title}`)}
+                        onClick={() => {
+                          addToCart({
+                            id: product.id,
+                            name: product.name || product.title || "Untitled Product",
+                            price: priceNumber,
+                            imageUrl: displayImage
+                          });
+                          alert(`Added ${product.name || product.title || "product"} to cart!`);
+                        }}
                       >
-                        View Product
+                        Add to Cart
                       </button>
                     </div>
                   </div>
