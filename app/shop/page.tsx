@@ -287,7 +287,6 @@ export default function ShopPage() {
                             price: priceNumber,
                             imageUrl: displayImage
                           });
-                          alert(`Added ${product.name || product.title || "product"} to cart!`);
                         }}
                       >
                         Add to Cart
