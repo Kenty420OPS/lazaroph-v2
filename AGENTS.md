@@ -39,6 +39,9 @@
    marked complete, to prevent unbounded storage growth — keep the order
    record itself (ID, amount, status) in Firestore even after its images are
    deleted, for audit purposes.
+9. Always run `git status` and commit or stash changes before switching branches. 
+   Never use the `git checkout -f` flag without explicit user consent.
+
 
 ## Current feature scope (v1)
 1. Public product catalog — three categories: Sneakers, Bags & Luggage, Watches
