@@ -15,6 +15,19 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+  };
+
   const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -139,20 +152,21 @@ export default function AdminPage() {
       });
       const data = await response.json();
       if (data.success) {
+        showNotification("Order status updated!", "success");
         verifyAndLoadOrders();
       } else {
-        alert("Error updating order: " + data.error);
+        showNotification("Error updating order: " + data.error, "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to update order status");
+      showNotification("Failed to update order status", "error");
     }
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !price) {
-      alert("Name and price are required");
+      showNotification("Name and price are required", "error");
       return;
     }
 
@@ -185,15 +199,15 @@ export default function AdminPage() {
 
       const data = await response.json();
       if (data.success) {
-        alert(editingId ? "Product updated!" : "Product added!");
+        showNotification(editingId ? "Product updated!" : "Product added!", "success");
         resetForm();
         verifyAndLoad();
       } else {
-        alert("Error: " + (data.error || "Unknown error"));
+        showNotification("Error: " + (data.error || "Unknown error"), "error");
       }
     } catch (err: any) {
       console.error(err);
-      alert("Failed: " + err.message);
+      showNotification("Failed: " + err.message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -214,13 +228,14 @@ export default function AdminPage() {
       });
       const data = await response.json();
       if (data.success) {
+        showNotification("Product deleted!", "success");
         verifyAndLoad();
       } else {
-        alert("Error deleting: " + data.error);
+        showNotification("Error deleting: " + data.error, "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to delete");
+      showNotification("Failed to delete", "error");
     }
   };
 
@@ -276,6 +291,19 @@ export default function AdminPage() {
       </header>
 
       <main className="flex-grow p-6">
+        {notification && (
+          <div className="max-w-7xl mx-auto mb-6">
+            <div className={`flex items-center space-x-3 p-4 border rounded-xl text-xs font-bold ${notification.type === 'success' ? 'bg-[#171717] border-[#262626] text-white' : 'bg-red-950/50 border-red-900 text-red-200'}`}>
+              {notification.type === 'success' ? (
+                <span className="text-green-500 text-sm">✓</span>
+              ) : (
+                <span className="text-red-500 text-sm">!</span>
+              )}
+              <span>{notification.message}</span>
+            </div>
+          </div>
+        )}
+
         {activeTab === "products" ? (
           <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5">
