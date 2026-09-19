@@ -576,19 +576,40 @@ export default function AdminPage() {
                           <div className="space-y-3">
                             {(() => {
                               const normalizeItems = (items: any) => {
-                                if (Array.isArray(items)) return items;
-                                if (typeof items === 'string') {
+                                let arr: any[] = [];
+                                if (Array.isArray(items)) {
+                                  arr = items;
+                                } else if (typeof items === 'string') {
                                   try {
                                     const parsed = JSON.parse(items);
-                                    return Array.isArray(parsed) ? parsed : Object.values(parsed);
+                                    if (Array.isArray(parsed)) {
+                                      arr = parsed;
+                                    } else if (typeof parsed === 'object' && parsed !== null) {
+                                      arr = ('name' in parsed || 'price' in parsed || 'quantity' in parsed) ? [parsed] : Object.values(parsed);
+                                    }
                                   } catch {
-                                    return [];
+                                    arr = [];
                                   }
+                                } else if (typeof items === 'object' && items !== null) {
+                                  arr = ('name' in items || 'price' in items || 'quantity' in items) ? [items] : Object.values(items);
+                                } else {
+                                  arr = [];
                                 }
-                                if (typeof items === 'object' && items !== null) {
-                                  return Object.values(items);
-                                }
-                                return [];
+
+                                return arr.map(item => {
+                                  const qty = Number(item.quantity);
+                                  const price = Number(item.price);
+                                  
+                                  if (isNaN(qty) || isNaN(price) || item.quantity === undefined || item.price === undefined) {
+                                    console.warn("Malformed order item detected:", item);
+                                  }
+                                  
+                                  return {
+                                    ...item,
+                                    quantity: isNaN(qty) ? 0 : qty,
+                                    price: isNaN(price) ? 0 : price
+                                  };
+                                });
                               };
                               return normalizeItems(order.items).map((item: any, idx: number) => (
                                 <div key={idx} className="flex justify-between items-center text-sm">
@@ -699,7 +720,10 @@ export default function AdminPage() {
                     ) : (
                       chatMessages.map(msg => (
                         <div key={msg.id} className={`flex ${msg.role === "admin" ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[70%] rounded-xl px-4 py-2 text-sm ${msg.role === "admin" ? "bg-white text-black font-medium rounded-br-sm shadow-sm" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}>
+                          <div 
+                            className={`max-w-[70%] rounded-xl px-4 py-2 text-sm ${msg.role === "admin" ? "bg-white text-black font-medium rounded-br-sm shadow-sm" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}
+                            style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+                          >
                             {msg.text}
                           </div>
                         </div>

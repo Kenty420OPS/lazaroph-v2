@@ -181,7 +181,10 @@ export default function ChatWidget() {
             ) : (
               messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.role === "customer" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${msg.role === "customer" ? "bg-white text-black rounded-br-sm font-medium" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}>
+                  <div 
+                    className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${msg.role === "customer" ? "bg-white text-black rounded-br-sm font-medium" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}
+                    style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+                  >
                     {msg.text}
                   </div>
                 </div>
