@@ -408,7 +408,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {activeTab === "products" ? (
+        {activeTab === "products" && (
           <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5">
               <form onSubmit={handleSubmit} className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
