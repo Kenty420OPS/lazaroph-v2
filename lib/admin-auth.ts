@@ -13,18 +13,11 @@ export async function verifyAdminRequest(request: Request): Promise<{ isAdmin: b
       return { isAdmin: false, error: "Unauthorized: Empty token" };
     }
 
-    // Verify token
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    // Verify token and check for revocation
+    const decodedToken = await adminAuth.verifyIdToken(token, true);
     const uid = decodedToken.uid;
 
-    // Check user role in Firestore
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      return { isAdmin: false, error: "Forbidden: User document not found" };
-    }
-
-    const userData = userDoc.data();
-    if (userData?.role !== 'admin') {
+    if (decodedToken.role !== 'admin') {
       return { isAdmin: false, error: "Forbidden: User does not have admin privileges" };
     }
 

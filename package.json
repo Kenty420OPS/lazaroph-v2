@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:rules": "firebase emulators:exec \"node tests/firestore.rules.test.js\" --only firestore"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

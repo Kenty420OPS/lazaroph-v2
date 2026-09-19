@@ -7,18 +7,21 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // Admins are authenticated and have the 'admin' custom claim 
     function isAdmin() {
-      return isAuthenticated() && 
-        (request.auth.token.role == 'admin' || 
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      return isAuthenticated() && request.auth.token.get('role', null) == 'admin';
+    }
+
+    // A non-anonymous user is an authenticated user who did not sign in via Anonymous Auth.
+    function isNonAnonymous() {
+      return isAuthenticated() && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isNonAnonymous() && request.auth.uid == userId;
     }
 
-    // 1. Public READ for product catalog (products, brands, categories); WRITE requires Admin role
+    // 1. Public READ for product catalog; WRITE requires Admin role
     match /products/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -34,19 +37,84 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 2. Orders: Users can read/write their own orders; Admin can read/write all
+    // 2. Orders: Non-anonymous users can read their own orders; Admin can read/write all
     match /orders/{orderId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
-      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
     }
 
-    // 3. User profiles: Users can read/write their own document; Admin can read/write all
+    // 4. User profiles: Non-anonymous users can read/write their own document (except role); Admin can read/write all
     match /users/{userId} {
-      allow read, write: if isAdmin() || isOwner(userId);
+      allow read: if isAdmin() || isOwner(userId);
+      // User can create their profile but cannot set role
+      allow create: if isAdmin() || (isOwner(userId) && !('role' in request.resource.data));
+      // User can update their profile but cannot modify role
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      allow delete: if isAdmin();
     }
 
-    // 4. Strict default fallback: All unhandled collections are ADMIN-ONLY
+    // 5. Chat Conversations
+    match /conversations/{conversationId} {
+      // Guest must own the conversation, Admin has full access (guest condition first)
+      allow get: if (isAuthenticated() && request.auth.uid == conversationId) || isAdmin();
+      allow list: if isAdmin();
+      
+      // Creation: Guest can only create a conversation matching their UID with exact schema
+      allow create: if (isAuthenticated() && 
+         request.auth.uid == conversationId &&
+         request.resource.data.keys().hasOnly(['customerId', 'customerName', 'lastMessage', 'updatedAt', 'unreadAdmin', 'unreadCustomer']) &&
+         request.resource.data.customerId == request.auth.uid &&
+         request.resource.data.customerName is string &&
+         request.resource.data.customerName.size() <= 100 &&
+         request.resource.data.lastMessage is string &&
+         request.resource.data.lastMessage.size() <= 1000 &&
+         request.resource.data.updatedAt == request.time &&
+         request.resource.data.unreadAdmin is int && request.resource.data.unreadAdmin == 1 &&
+         request.resource.data.unreadCustomer is int && request.resource.data.unreadCustomer == 0) 
+         || isAdmin();
+         
+      // Update: Guest can update timestamp/lastMessage, and increment unreadAdmin by exactly 1
+      allow update: if (isAuthenticated() && 
+         request.auth.uid == conversationId &&
+         (
+           // Branch A: Guest sends a message
+           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt', 'unreadAdmin', 'unreadCustomer']) &&
+            request.resource.data.lastMessage is string && request.resource.data.lastMessage.size() <= 1000 &&
+            request.resource.data.updatedAt == request.time &&
+            request.resource.data.unreadAdmin is int && 
+            request.resource.data.unreadAdmin == resource.data.unreadAdmin + 1 &&
+            request.resource.data.unreadCustomer == resource.data.unreadCustomer)
+           ||
+           // Branch B: Guest clears unreadCustomer
+           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCustomer']) &&
+            request.resource.data.unreadCustomer == 0)
+         )) 
+         || isAdmin();
+         
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        // Guest can only read messages in their own conversation
+        allow read: if (isAuthenticated() && request.auth.uid == conversationId) || isAdmin();
+        
+        allow create: if (isAuthenticated() && 
+           request.auth.uid == conversationId &&
+           request.resource.data.keys().hasOnly(['senderId', 'role', 'text', 'createdAt', 'read']) &&
+           request.resource.data.role == 'customer' && // Anti-spoofing
+           request.resource.data.senderId == request.auth.uid &&
+           request.resource.data.text is string && 
+           request.resource.data.text.trim().size() > 0 &&
+           request.resource.data.text.size() <= 1000 && // Size limits
+           request.resource.data.createdAt == request.time &&
+           request.resource.data.read == false)
+           || isAdmin();
+           
+        // Guests cannot edit or delete messages
+        allow update, delete: if isAdmin(); 
+      }
+    }
+
+    // 6. Strict default fallback: All unhandled collections are ADMIN-ONLY
     match /{document=**} {
       allow read, write: if isAdmin();
     }
