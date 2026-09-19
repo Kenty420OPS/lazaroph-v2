@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
-import { auth } from "@/lib/firebase";
+import { useEffect, useState, FormEvent, useRef } from "react";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,10 +29,16 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats">("products");
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
+
+  const [chats, setChats] = useState<any[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState("");
@@ -45,16 +52,76 @@ export default function AdminPage() {
   const [simulateUploadFailure, setSimulateUploadFailure] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        verifyAndLoad();
-        verifyAndLoadOrders();
+        if (currentUser.isAnonymous) {
+          // Do not sign out anonymous customers; just treat them as logged out of Admin
+          setUser(null);
+          setAuthLoading(false);
+          return;
+        }
+
+        try {
+          // Force refresh token to get the latest custom claims during rollout
+          const token = await currentUser.getIdTokenResult(true);
+          
+          if (token.claims.role === 'admin') {
+            setUser(currentUser);
+            setAuthLoading(false);
+            verifyAndLoad();
+            verifyAndLoadOrders();
+          } else {
+            // Non-anonymous, but missing admin claim
+            await signOut(auth);
+            setUser(null);
+            setAuthLoading(false);
+            setLoginError("Access denied: Admin claim missing.");
+          }
+        } catch (error) {
+          console.error("Token verification failed", error);
+          await signOut(auth);
+          setUser(null);
+          setAuthLoading(false);
+        }
+      } else {
+        setUser(null);
+        setAuthLoading(false);
       }
     });
     return () => unsubscribe();
   }, []);
+
+  // Listen to all conversations for admin
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "conversations"), orderBy("updatedAt", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setChats(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [user]);
+
+  // Listen to active chat messages
+  useEffect(() => {
+    if (!activeChatId) {
+      setChatMessages([]);
+      return;
+    }
+    const q = query(collection(db, "conversations", activeChatId, "messages"), orderBy("createdAt", "asc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // Mark as read
+      updateDoc(doc(db, "conversations", activeChatId), { unreadAdmin: 0 }).catch(console.error);
+    });
+    return () => unsub();
+  }, [activeChatId]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -160,6 +227,32 @@ export default function AdminPage() {
     } catch (err) {
       console.error(err);
       showNotification("Failed to update order status", "error");
+    }
+  };
+
+  const sendChatMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !activeChatId) return;
+
+    const text = chatInput.trim();
+    setChatInput("");
+
+    try {
+      await addDoc(collection(db, "conversations", activeChatId, "messages"), {
+        senderId: "admin",
+        role: "admin",
+        text,
+        createdAt: serverTimestamp(),
+        read: false
+      });
+      await updateDoc(doc(db, "conversations", activeChatId), {
+        lastMessage: text,
+        updatedAt: serverTimestamp(),
+        unreadCustomer: 1
+      });
+    } catch (err) {
+      console.error(err);
+      showNotification("Failed to send message", "error");
     }
   };
 
@@ -283,6 +376,17 @@ export default function AdminPage() {
               className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "orders" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Orders
+            </button>
+            <button
+              onClick={() => setActiveTab("chats")}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${activeTab === "chats" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+            >
+              Chats
+              {chats.reduce((acc, c) => acc + (c.unreadAdmin || 0), 0) > 0 && (
+                <span className="bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[10px] leading-none">
+                  {chats.reduce((acc, c) => acc + (c.unreadAdmin || 0), 0)}
+                </span>
+              )}
             </button>
           </div>
           <span className="text-xs text-neutral-400">{user.email}</span>
@@ -470,17 +574,34 @@ export default function AdminPage() {
                         <div>
                           <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3 border-b border-neutral-800 pb-2">Order Items</h3>
                           <div className="space-y-3">
-                            {order.items?.map((item: any, idx: number) => (
-                              <div key={idx} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-black border border-neutral-800 rounded overflow-hidden">
-                                    {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />}
+                            {(() => {
+                              const normalizeItems = (items: any) => {
+                                if (Array.isArray(items)) return items;
+                                if (typeof items === 'string') {
+                                  try {
+                                    const parsed = JSON.parse(items);
+                                    return Array.isArray(parsed) ? parsed : Object.values(parsed);
+                                  } catch {
+                                    return [];
+                                  }
+                                }
+                                if (typeof items === 'object' && items !== null) {
+                                  return Object.values(items);
+                                }
+                                return [];
+                              };
+                              return normalizeItems(order.items).map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center text-sm">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-black border border-neutral-800 rounded overflow-hidden">
+                                      {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />}
+                                    </div>
+                                    <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}</span>
                                   </div>
-                                  <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}</span>
+                                  <span className="text-neutral-400">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
                                 </div>
-                                <span className="text-neutral-400">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
-                              </div>
-                            ))}
+                              ));
+                            })()}
                           </div>
                           <div className="mt-4 pt-3 border-t border-neutral-800 flex justify-between items-center">
                             <span className="text-neutral-400 text-sm">Shipping Fee ({order.shipping?.courier})</span>
@@ -528,6 +649,89 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+        )}
+        
+        {activeTab === "chats" && (
+          <div className="max-w-7xl mx-auto h-[700px] flex flex-col md:flex-row gap-6">
+            {/* Chat List */}
+            <div className="w-full md:w-1/3 bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-col overflow-hidden h-[400px] md:h-full shadow-xl">
+              <div className="p-4 border-b border-neutral-800 bg-neutral-900">
+                <h2 className="font-bold uppercase tracking-wider text-sm">Conversations</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {chats.length === 0 ? (
+                  <div className="p-8 text-center text-neutral-500 text-xs">No chats yet.</div>
+                ) : (
+                  chats.map(chat => (
+                    <div 
+                      key={chat.id} 
+                      onClick={() => setActiveChatId(chat.id)}
+                      className={`p-4 border-b border-neutral-800 cursor-pointer transition-colors ${activeChatId === chat.id ? 'bg-neutral-800' : 'hover:bg-neutral-900'}`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-sm text-white truncate">{chat.customerName || 'Guest'}</span>
+                        {chat.unreadAdmin > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none">{chat.unreadAdmin}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-400 truncate">{chat.lastMessage}</p>
+                      <p className="text-[9px] text-neutral-600 mt-2 font-bold tracking-wider">
+                        {chat.updatedAt?.toDate ? chat.updatedAt.toDate().toLocaleString() : ''}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Chat Thread */}
+            <div className="w-full md:w-2/3 bg-neutral-950 border border-neutral-800 rounded-2xl flex flex-col overflow-hidden h-[500px] md:h-full shadow-xl">
+              {activeChatId ? (
+                <>
+                  <div className="p-4 border-b border-neutral-800 bg-neutral-900 flex justify-between items-center">
+                    <h2 className="font-bold uppercase tracking-wider text-sm text-white">
+                      Chat with <span className="text-neutral-400">{chats.find(c => c.id === activeChatId)?.customerName || 'Guest'}</span>
+                    </h2>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-black">
+                    {chatMessages.length === 0 ? (
+                      <div className="text-center text-neutral-500 text-xs mt-10">No messages yet.</div>
+                    ) : (
+                      chatMessages.map(msg => (
+                        <div key={msg.id} className={`flex ${msg.role === "admin" ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[70%] rounded-xl px-4 py-2 text-sm ${msg.role === "admin" ? "bg-white text-black font-medium rounded-br-sm shadow-sm" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}>
+                            {msg.text}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    <div ref={chatMessagesEndRef} />
+                  </div>
+                  <form onSubmit={sendChatMessage} className="p-4 bg-neutral-950 border-t border-neutral-800 flex gap-3">
+                    <input 
+                      type="text" 
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      placeholder="Type a reply..." 
+                      className="flex-1 bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-neutral-600 transition-colors"
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!chatInput.trim()}
+                      className="bg-white text-black px-6 py-2 rounded-lg text-sm font-bold uppercase tracking-wider disabled:opacity-50 transition-opacity"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-neutral-500 text-sm bg-black">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4 opacity-50"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                  Select a conversation to start chatting.
+                </div>
+              )}
+            </div>
+          </div>
         )}
           </main>
     </div>
