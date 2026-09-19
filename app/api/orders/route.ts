@@ -23,7 +23,8 @@ export async function POST(request: Request) {
 
     let cart = [];
     try {
-      cart = JSON.parse(cartStr);
+      const parsed = JSON.parse(cartStr);
+      cart = Array.isArray(parsed) ? parsed : (typeof parsed === 'object' && parsed !== null ? Object.values(parsed) : []);
     } catch (e) {
       return NextResponse.json({ success: false, error: "Invalid cart data" }, { status: 400 });
     }
