@@ -29,20 +29,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Invalid cart data" }, { status: 400 });
     }
 
-    // 1. Upload the payment screenshot via Admin SDK
+    // 1. Validate payment image
+    if (paymentImage.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ success: false, error: "Payment image must be under 5MB" }, { status: 400 });
+    }
+    
+    // 2. Validate magic bytes and derive extension
     const buffer = Buffer.from(await paymentImage.arrayBuffer());
-    const safeFileName = `${Date.now()}_${paymentImage.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+    let validatedMimeType = "";
+    let ext = "";
+
+    // Check magic bytes signatures
+    if (buffer.length > 4 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+      validatedMimeType = "image/jpeg";
+      ext = "jpg";
+    } else if (buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      validatedMimeType = "image/png";
+      ext = "png";
+    } else if (buffer.length > 12 && buffer.toString('ascii', 0, 4) === "RIFF" && buffer.toString('ascii', 8, 12) === "WEBP") {
+      validatedMimeType = "image/webp";
+      ext = "webp";
+    } else {
+      return NextResponse.json({ success: false, error: "Payment image must be a valid image (JPEG, PNG, WEBP)" }, { status: 400 });
+    }
+
+    // 3. Upload the payment screenshot via Admin SDK
+    const safeFileName = `${Date.now()}_${crypto.randomUUID()}.${ext}`;
+    const storagePath = `payments/${safeFileName}`;
     
     const bucket = adminStorage.bucket();
-    const file = bucket.file(`payments/${safeFileName}`);
+    const file = bucket.file(storagePath);
     
     await file.save(buffer, {
-      metadata: { contentType: paymentImage.type || "image/jpeg" },
+      metadata: { contentType: validatedMimeType },
     });
     
-    const paymentImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(`payments/${safeFileName}`)}?alt=media`;
+    const paymentImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media`;
 
-    // 2. Save order to Firestore
+    // 3. Save order to Firestore
     const orderPayload: any = {
       customer: {
         name,
@@ -57,6 +81,7 @@ export async function POST(request: Request) {
         method: paymentMethod,
         referenceNumber,
         proofImageUrl: paymentImageUrl,
+        proofImagePath: storagePath, // Stored for generating secure signed URLs later
       },
       items: cart,
       total,
