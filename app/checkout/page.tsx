@@ -29,6 +29,58 @@ export default function CheckoutPage() {
   }
   const finalTotal = cartTotal + shippingFee;
 
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const max_size = 1600;
+
+          if (width > height) {
+            if (width > max_size) {
+              height = Math.round((height *= max_size / width));
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width = Math.round((width *= max_size / height));
+              height = max_size;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                // Return a new File object
+                resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                }));
+              } else {
+                reject(new Error("Image compression failed"));
+              }
+            },
+            "image/jpeg",
+            0.8
+          );
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
@@ -41,6 +93,19 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
       setError(null);
+
+      // Compress image to ensure it's under Vercel's 4.5MB limit
+      let processedImage = paymentImage;
+      try {
+        if (paymentImage.type.startsWith('image/')) {
+          processedImage = await compressImage(paymentImage);
+        }
+      } catch (err) {
+        console.error("Compression error:", err);
+        setError("Failed to process image. Please try uploading a different photo.");
+        setLoading(false);
+        return;
+      }
 
       const formData = new FormData();
       formData.append("name", name);
@@ -55,7 +120,7 @@ export default function CheckoutPage() {
       formData.append("referenceNumber", referenceNumber);
       formData.append("cart", JSON.stringify(cart));
       formData.append("total", finalTotal.toString());
-      formData.append("paymentImage", paymentImage);
+      formData.append("paymentImage", processedImage);
 
       const res = await fetch("/api/orders", {
         method: "POST",

@@ -640,9 +640,9 @@ export default function AdminPage() {
                     <div className="md:w-72 flex-shrink-0 space-y-6">
                       <div>
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Payment Proof</h3>
-                        <a href={order.payment?.proofImageUrl} target="_blank" rel="noopener noreferrer" className="block relative group rounded-xl overflow-hidden border border-neutral-800 aspect-[3/4] bg-neutral-900 cursor-zoom-in">
-                          {order.payment?.proofImageUrl ? (
-                            <img src={order.payment?.proofImageUrl} alt="Payment Proof" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
+                        <a href={order.payment?.secureProofImageUrl || order.payment?.proofImageUrl} target="_blank" rel="noopener noreferrer" className="block relative group rounded-xl overflow-hidden border border-neutral-800 aspect-[3/4] bg-neutral-900 cursor-zoom-in">
+                          {(order.payment?.secureProofImageUrl || order.payment?.proofImageUrl) ? (
+                            <img src={order.payment?.secureProofImageUrl || order.payment?.proofImageUrl} alt="Payment Proof" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">No image</div>
                           )}
