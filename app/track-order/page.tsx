@@ -98,9 +98,9 @@ function TrackOrderContent() {
                   THIS ORDER HAS BEEN CANCELLED.
                 </div>
               ) : (
-                <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0 mt-8 mb-4 px-4 sm:px-10">
-                  <div className="hidden sm:block absolute top-1/2 left-12 right-12 h-1 bg-neutral-800 -translate-y-1/2 z-0"></div>
-                  <div className={`hidden sm:block absolute top-1/2 left-12 h-1 bg-white -translate-y-1/2 z-0 transition-all duration-500`} style={{ width: `${(Math.max(0, currentStep - 1) / 3) * 100}%` }}></div>
+                <div className="relative flex flex-col sm:grid sm:grid-cols-4 items-start gap-6 sm:gap-0 mt-8 mb-4">
+                  <div className="hidden sm:block absolute top-4 h-1 bg-neutral-800 -translate-y-1/2 z-0" style={{ left: '12.5%', right: '12.5%' }}></div>
+                  <div className="hidden sm:block absolute top-4 h-1 bg-white -translate-y-1/2 z-0 transition-all duration-500" style={{ left: '12.5%', width: `${(Math.max(0, currentStep - 1) / 3) * 75}%` }}></div>
 
                   {[
                     { step: 1, label: "Pending Payment" },
@@ -108,7 +108,7 @@ function TrackOrderContent() {
                     { step: 3, label: "Shipped" },
                     { step: 4, label: "Completed" },
                   ].map((s) => (
-                    <div key={s.step} className="relative z-10 flex sm:flex-col items-center gap-4 sm:gap-2 text-center w-full sm:w-auto">
+                    <div key={s.step} className="relative z-10 flex sm:flex-col items-center gap-4 sm:gap-2 text-center w-full">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
                         currentStep >= s.step 
                           ? "bg-white border-white text-black" 
