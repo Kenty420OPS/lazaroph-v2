@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,16 @@ import { useRouter } from "next/navigation";
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal, cartCount } = useCart();
   const router = useRouter();
+  
+  const [recentOrders, setRecentOrders] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("recent_orders");
+      if (stored) {
+        setRecentOrders(JSON.parse(stored));
+      }
+    } catch (err) {}
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-neutral-800">
@@ -111,6 +122,25 @@ export default function CartPage() {
                   Proceed to Checkout
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {recentOrders.length > 0 && (
+          <div className="mt-16 border-t border-neutral-800 pt-12">
+            <h2 className="text-xl font-black tracking-tight mb-6 uppercase">Your Recent Orders</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {recentOrders.map((orderId) => (
+                <div key={orderId} className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 flex flex-col justify-between group hover:border-neutral-700 transition-colors">
+                  <div>
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1 block">Order ID</span>
+                    <p className="font-mono font-bold text-neutral-300 mb-5 truncate group-hover:text-white transition-colors">{orderId}</p>
+                  </div>
+                  <Link href={`/track-order?orderId=${orderId}`} className="text-center w-full py-2.5 rounded-lg bg-neutral-800 text-white border border-neutral-700 text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black hover:border-white transition-colors">
+                    Track Status &rarr;
+                  </Link>
+                </div>
+              ))}
             </div>
           </div>
         )}

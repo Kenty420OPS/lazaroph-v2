@@ -1,11 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function CheckoutSuccessPage({ searchParams }: { searchParams: { orderId?: string } }) {
   const orderId = searchParams?.orderId;
   const [copied, setCopied] = useState(false);
+
+  // Save to local storage for "Recent Orders" in Cart
+  useEffect(() => {
+    if (orderId) {
+      try {
+        const stored = localStorage.getItem("recent_orders");
+        let orders = stored ? JSON.parse(stored) : [];
+        if (!orders.includes(orderId)) {
+          orders = [orderId, ...orders].slice(0, 5); // Keep up to 5 recent orders
+          localStorage.setItem("recent_orders", JSON.stringify(orders));
+        }
+      } catch (err) {
+        console.error("Failed to save recent order", err);
+      }
+    }
+  }, [orderId]);
 
   const copyToClipboard = () => {
     if (orderId) {
