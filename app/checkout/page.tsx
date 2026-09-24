@@ -148,6 +148,24 @@ export default function CheckoutPage() {
         throw new Error(data.error || "Checkout failed");
       }
 
+      // Save to local storage for "Recent Orders" in Cart
+      try {
+        const stored = localStorage.getItem("recent_orders");
+        let orders = stored ? JSON.parse(stored) : [];
+        const orderSummary = {
+          id: data.orderId,
+          date: new Date().toISOString(),
+          items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity })),
+          total: finalTotal
+        };
+        // Remove duplicate if it somehow exists (or string formats from previous version)
+        orders = orders.filter((o: any) => (typeof o === 'string' ? o : o.id) !== data.orderId);
+        orders = [orderSummary, ...orders].slice(0, 5);
+        localStorage.setItem("recent_orders", JSON.stringify(orders));
+      } catch (err) {
+        console.error("Failed to save recent order", err);
+      }
+
       clearCart();
       router.push(`/checkout/success?orderId=${data.orderId}`);
     } catch (err: any) {

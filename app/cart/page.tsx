@@ -9,7 +9,7 @@ export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, cartTotal, cartCount } = useCart();
   const router = useRouter();
   
-  const [recentOrders, setRecentOrders] = useState<string[]>([]);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("recent_orders");
@@ -130,17 +130,59 @@ export default function CartPage() {
           <div className="mt-16 border-t border-neutral-800 pt-12">
             <h2 className="text-xl font-black tracking-tight mb-6 uppercase">Your Recent Orders</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {recentOrders.map((orderId) => (
-                <div key={orderId} className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 flex flex-col justify-between group hover:border-neutral-700 transition-colors">
-                  <div>
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1 block">Order ID</span>
-                    <p className="font-mono font-bold text-neutral-300 mb-5 truncate group-hover:text-white transition-colors">{orderId}</p>
+              {recentOrders.map((order) => {
+                const isLegacy = typeof order === 'string';
+                const orderId = isLegacy ? order : order.id;
+                
+                return (
+                  <div key={orderId} className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 flex flex-col justify-between group hover:border-neutral-700 transition-colors">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1 block">Order ID</span>
+                          <p className="font-mono font-bold text-neutral-300 text-sm truncate group-hover:text-white transition-colors">{orderId}</p>
+                        </div>
+                        {!isLegacy && order.date && (
+                          <span className="text-[10px] text-neutral-500 font-medium">
+                            {new Date(order.date).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {!isLegacy && order.items && order.items.length > 0 && (
+                        <div className="mb-6 space-y-3">
+                          {order.items.slice(0, 2).map((item: any, i: number) => (
+                            <div key={i} className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-black rounded border border-neutral-800 overflow-hidden flex-shrink-0">
+                                {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-white truncate">{item.name}</p>
+                                <p className="text-xs text-neutral-500">Qty: {item.quantity}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {order.items.length > 2 && (
+                            <p className="text-xs text-neutral-500 italic">+{order.items.length - 2} more items</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="mt-auto">
+                      {!isLegacy && order.total && (
+                        <div className="flex justify-between items-center mb-4 pt-4 border-t border-neutral-800/50">
+                          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Total</span>
+                          <span className="text-sm font-black text-white">₱{order.total.toLocaleString("en-PH")}</span>
+                        </div>
+                      )}
+                      <Link href={`/track-order?orderId=${orderId}`} className="flex items-center justify-center w-full py-2.5 rounded-lg bg-neutral-800 text-white border border-neutral-700 text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black hover:border-white transition-colors">
+                        Track Status &rarr;
+                      </Link>
+                    </div>
                   </div>
-                  <Link href={`/track-order?orderId=${orderId}`} className="text-center w-full py-2.5 rounded-lg bg-neutral-800 text-white border border-neutral-700 text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black hover:border-white transition-colors">
-                    Track Status &rarr;
-                  </Link>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
