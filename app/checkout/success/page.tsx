@@ -1,6 +1,20 @@
-import Link from "next/link";
+"use client";
 
-export default function CheckoutSuccessPage() {
+import Link from "next/link";
+import { useState } from "react";
+
+export default function CheckoutSuccessPage({ searchParams }: { searchParams: { orderId?: string } }) {
+  const orderId = searchParams?.orderId;
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    if (orderId) {
+      navigator.clipboard.writeText(orderId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-6">
@@ -16,9 +30,32 @@ export default function CheckoutSuccessPage() {
           <p>
             Thank you for ordering from <span className="font-bold text-white">LAZAROPH v2</span>.
           </p>
-          <p className="px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white font-medium">
-            Status: PENDING VERIFICATION
+          <p className="px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white font-medium flex flex-col gap-1">
+            <span className="text-xs text-neutral-400">Status:</span>
+            <span>PENDING PAYMENT</span>
           </p>
+          {orderId && (
+            <div className="flex flex-col gap-3">
+              <div className="px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-left font-mono relative">
+                <p className="text-xs text-neutral-400 mb-1 font-sans font-bold uppercase tracking-wider">Your Order ID:</p>
+                <div className="flex justify-between items-center">
+                  <p className="font-bold truncate mr-4">{orderId}</p>
+                  <button
+                    onClick={copyToClipboard}
+                    className="bg-white text-black px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider hover:bg-neutral-200 transition-colors flex-shrink-0"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              </div>
+              <Link 
+                href={`/track-order?orderId=${orderId}`}
+                className="text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white underline underline-offset-4 decoration-neutral-600 transition-colors"
+              >
+                Track This Order &rarr;
+              </Link>
+            </div>
+          )}
           <p>
             We have securely received your order and proof of payment. Our admin team will manually verify your payment within the next 24 hours. 
           </p>

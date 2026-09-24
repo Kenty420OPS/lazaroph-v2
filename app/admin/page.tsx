@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const [chats, setChats] = useState<any[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -221,6 +222,9 @@ export default function AdminPage() {
       if (data.success) {
         showNotification("Order status updated!", "success");
         verifyAndLoadOrders();
+        if (selectedOrder && selectedOrder.id === id) {
+          setSelectedOrder({ ...selectedOrder, status: newStatus });
+        }
       } else {
         showNotification("Error updating order: " + data.error, "error");
       }
@@ -522,153 +526,211 @@ export default function AdminPage() {
 
         {activeTab === "orders" && (
           <div className="max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
-              <h2 className="text-xl font-bold uppercase tracking-wider">Orders Management</h2>
-              <div className="flex items-center space-x-4">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-neutral-900 border border-neutral-800 text-white text-xs px-3 py-2 rounded-lg"
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="pending_verification">Pending Verification</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-                <button onClick={verifyAndLoadOrders} className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors">
-                  Refresh
-                </button>
-              </div>
-            </div>
+            {!selectedOrder ? (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
+                  <h2 className="text-xl font-bold uppercase tracking-wider">Orders Management</h2>
+                  <div className="flex items-center space-x-4">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="bg-neutral-900 border border-neutral-800 text-white text-xs px-3 py-2 rounded-lg"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="pending_payment">Pending Payment</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                    <button onClick={verifyAndLoadOrders} className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors">
+                      Refresh
+                    </button>
+                  </div>
+                </div>
 
-            {loadingOrders ? (
-              <div className="flex justify-center py-20 text-neutral-500">Loading orders...</div>
-            ) : orders.filter(o => statusFilter === "All" || o.status === statusFilter).length === 0 ? (
-              <div className="text-center py-20 bg-neutral-950 border border-neutral-800 rounded-2xl text-neutral-500 text-sm">
-                No orders found.
-              </div>
+                {loadingOrders ? (
+                  <div className="flex justify-center py-20 text-neutral-500">Loading orders...</div>
+                ) : orders.filter(o => {
+                  const s = o.status === "pending_verification" ? "pending_payment" : o.status;
+                  return statusFilter === "All" || s === statusFilter;
+                }).length === 0 ? (
+                  <div className="text-center py-20 bg-neutral-950 border border-neutral-800 rounded-2xl text-neutral-500 text-sm">
+                    No orders found.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-neutral-800 text-xs text-neutral-500 uppercase tracking-wider">
+                          <th className="p-4 font-bold">Order ID</th>
+                          <th className="p-4 font-bold">Date</th>
+                          <th className="p-4 font-bold">Customer</th>
+                          <th className="p-4 font-bold">Total</th>
+                          <th className="p-4 font-bold">Status</th>
+                          <th className="p-4 font-bold">Proof</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.filter(o => {
+                          const s = o.status === "pending_verification" ? "pending_payment" : o.status;
+                          return statusFilter === "All" || s === statusFilter;
+                        }).map((order) => {
+                          const s = order.status === "pending_verification" ? "pending_payment" : order.status;
+                          let badgeColor = "bg-neutral-800 text-neutral-300";
+                          if (s === "pending_payment") badgeColor = "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
+                          if (s === "confirmed") badgeColor = "bg-blue-500/10 text-blue-500 border border-blue-500/20";
+                          if (s === "shipped") badgeColor = "bg-purple-500/10 text-purple-500 border border-purple-500/20";
+                          if (s === "completed") badgeColor = "bg-green-500/10 text-green-500 border border-green-500/20";
+                          if (s === "cancelled") badgeColor = "bg-red-500/10 text-red-500 border border-red-500/20";
+
+                          return (
+                            <tr key={order.id} onClick={() => setSelectedOrder(order)} className="border-b border-neutral-800 hover:bg-neutral-900/50 cursor-pointer transition-colors text-sm">
+                              <td className="p-4 font-mono text-neutral-400">{order.id.slice(0, 8)}...</td>
+                              <td className="p-4 text-neutral-400 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString()}</td>
+                              <td className="p-4 font-bold text-white">{order.customer?.name}</td>
+                              <td className="p-4 font-bold text-white">₱{Number(order.total || 0).toLocaleString("en-PH")}</td>
+                              <td className="p-4">
+                                <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${badgeColor}`}>
+                                  {s.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                {(order.payment?.proofImagePath || order.payment?.proofImageUrl) ? (
+                                  <span className="text-green-500 font-bold">Yes</span>
+                                ) : (
+                                  <span className="text-neutral-600">No</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="grid grid-cols-1 gap-6">
-                {orders.filter(o => statusFilter === "All" || o.status === statusFilter).map((order) => (
-                  <div key={order.id} className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 flex flex-col md:flex-row gap-8">
-                    <div className="flex-1 space-y-6">
-                      <div className="flex flex-wrap justify-between items-start gap-4">
-                        <div>
-                          <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Customer Details</h3>
-                          <p className="text-white font-semibold">{order.customer?.name}</p>
-                          <p className="text-neutral-400 text-sm">{order.customer?.contact}</p>
-                          <p className="text-neutral-400 text-sm">{order.customer?.address}</p>
-                          {order.shipping?.courier === "LBC" && (
-                            <p className="text-neutral-400 text-sm mt-1">LBC Region: <span className="text-white">{order.shipping?.region}</span></p>
-                          )}
-                        </div>
-                        <div className="text-left md:text-right">
-                          <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Info</h3>
-                          <p className="text-white text-sm">ID: <span className="font-mono text-neutral-500">{order.id}</span></p>
-                          <p className="text-white text-sm">Date: {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString()}</p>
-                          <p className="text-white text-sm">Method: {order.payment?.method}</p>
-                          <p className="text-white text-sm">Ref: {order.payment?.referenceNumber}</p>
-                        </div>
-                      </div>
-
+              <div className="space-y-6">
+                <button onClick={() => setSelectedOrder(null)} className="text-sm font-bold bg-neutral-900 px-4 py-2 rounded border border-neutral-800 hover:bg-neutral-800 flex items-center gap-2">
+                  &larr; Back to Orders List
+                </button>
+                <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 flex flex-col md:flex-row gap-8">
+                  <div className="flex-1 space-y-6">
+                    <div className="flex flex-wrap justify-between items-start gap-4">
                       <div>
-                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3 border-b border-neutral-800 pb-2">Order Items</h3>
-                        <div className="space-y-3">
-                          {(() => {
-                            const normalizeItems = (items: any) => {
-                              let arr: any[] = [];
-                              if (Array.isArray(items)) {
-                                arr = items;
-                              } else if (typeof items === 'string') {
-                                try {
-                                  const parsed = JSON.parse(items);
-                                  if (Array.isArray(parsed)) {
-                                    arr = parsed;
-                                  } else if (typeof parsed === 'object' && parsed !== null) {
-                                    arr = ('name' in parsed || 'price' in parsed || 'quantity' in parsed) ? [parsed] : Object.values(parsed);
-                                  }
-                                } catch {
-                                  arr = [];
-                                }
-                              } else if (typeof items === 'object' && items !== null) {
-                                arr = ('name' in items || 'price' in items || 'quantity' in items) ? [items] : Object.values(items);
-                              } else {
-                                arr = [];
-                              }
-
-                              return arr.map(item => {
-                                const qty = Number(item.quantity);
-                                const price = Number(item.price);
-
-                                if (isNaN(qty) || isNaN(price) || item.quantity === undefined || item.price === undefined) {
-                                  console.warn("Malformed order item detected:", item);
-                                }
-
-                                return {
-                                  ...item,
-                                  quantity: isNaN(qty) ? 0 : qty,
-                                  price: isNaN(price) ? 0 : price
-                                };
-                              });
-                            };
-                            return normalizeItems(order.items).map((item: any, idx: number) => (
-                              <div key={idx} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-black border border-neutral-800 rounded overflow-hidden">
-                                    {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />}
-                                  </div>
-                                  <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}</span>
-                                </div>
-                                <span className="text-neutral-400">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
-                              </div>
-                            ));
-                          })()}
-                        </div>
-                        <div className="mt-4 pt-3 border-t border-neutral-800 flex justify-between items-center">
-                          <span className="text-neutral-400 text-sm">Shipping Fee ({order.shipping?.courier})</span>
-                          <span className="text-white text-sm">₱{Number(order.shipping?.shippingFee || 0).toLocaleString("en-PH")}</span>
-                        </div>
-                        <div className="mt-2 flex justify-between items-center">
-                          <span className="font-bold text-white uppercase">Total</span>
-                          <span className="text-lg font-black text-white">₱{Number(order.total || 0).toLocaleString("en-PH")}</span>
-                        </div>
+                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Customer Details</h3>
+                        <p className="text-white font-semibold">{selectedOrder.customer?.name}</p>
+                        <p className="text-neutral-400 text-sm">{selectedOrder.customer?.contact}</p>
+                        <p className="text-neutral-400 text-sm">{selectedOrder.customer?.address}</p>
+                        {selectedOrder.shipping?.courier === "LBC" && (
+                          <p className="text-neutral-400 text-sm mt-1">LBC Region: <span className="text-white">{selectedOrder.shipping?.region}</span></p>
+                        )}
+                      </div>
+                      <div className="text-left md:text-right">
+                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Info</h3>
+                        <p className="text-white text-sm">ID: <span className="font-mono text-neutral-500">{selectedOrder.id}</span></p>
+                        <p className="text-white text-sm">Date: {new Date(selectedOrder.createdAt).toLocaleDateString()} {new Date(selectedOrder.createdAt).toLocaleTimeString()}</p>
+                        <p className="text-white text-sm">Method: {selectedOrder.payment?.method}</p>
+                        <p className="text-white text-sm">Ref: {selectedOrder.payment?.referenceNumber}</p>
                       </div>
                     </div>
 
-                    <div className="md:w-72 flex-shrink-0 space-y-6">
-                      <div>
-                        <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Payment Proof</h3>
-                        <a href={order.payment?.secureProofImageUrl || order.payment?.proofImageUrl} target="_blank" rel="noopener noreferrer" className="block relative group rounded-xl overflow-hidden border border-neutral-800 aspect-[3/4] bg-neutral-900 cursor-zoom-in">
-                          {(order.payment?.secureProofImageUrl || order.payment?.proofImageUrl) ? (
-                            <img src={order.payment?.secureProofImageUrl || order.payment?.proofImageUrl} alt="Payment Proof" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">No image</div>
-                          )}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="bg-black/80 text-white text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-sm">View Full Size</span>
-                          </div>
-                        </a>
-                      </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3 border-b border-neutral-800 pb-2">Order Items</h3>
+                      <div className="space-y-3">
+                        {(() => {
+                          const normalizeItems = (items: any) => {
+                            let arr: any[] = [];
+                            if (Array.isArray(items)) {
+                              arr = items;
+                            } else if (typeof items === 'string') {
+                              try {
+                                const parsed = JSON.parse(items);
+                                if (Array.isArray(parsed)) {
+                                  arr = parsed;
+                                } else if (typeof parsed === 'object' && parsed !== null) {
+                                  arr = ('name' in parsed || 'price' in parsed || 'quantity' in parsed) ? [parsed] : Object.values(parsed);
+                                }
+                              } catch {
+                                arr = [];
+                              }
+                            } else if (typeof items === 'object' && items !== null) {
+                              arr = ('name' in items || 'price' in items || 'quantity' in items) ? [items] : Object.values(items);
+                            } else {
+                              arr = [];
+                            }
 
-                      <div className="bg-black p-4 rounded-xl border border-neutral-800">
-                        <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Status</label>
-                        <select
-                          value={order.status || "pending_verification"}
-                          onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                          className="w-full bg-neutral-900 border border-neutral-700 text-white text-sm px-3 py-2 rounded-lg font-bold"
-                        >
-                          <option value="pending_verification">Pending Verification</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
+                            return arr.map(item => {
+                              const qty = Number(item.quantity);
+                              const price = Number(item.price);
+
+                              if (isNaN(qty) || isNaN(price) || item.quantity === undefined || item.price === undefined) {
+                                console.warn("Malformed order item detected:", item);
+                              }
+
+                              return {
+                                ...item,
+                                quantity: isNaN(qty) ? 0 : qty,
+                                price: isNaN(price) ? 0 : price
+                              };
+                            });
+                          };
+                          return normalizeItems(selectedOrder.items).map((item: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-black border border-neutral-800 rounded overflow-hidden">
+                                  {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />}
+                                </div>
+                                <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}</span>
+                              </div>
+                              <span className="text-neutral-400">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-neutral-800 flex justify-between items-center">
+                        <span className="text-neutral-400 text-sm">Shipping Fee ({selectedOrder.shipping?.courier})</span>
+                        <span className="text-white text-sm">₱{Number(selectedOrder.shipping?.shippingFee || 0).toLocaleString("en-PH")}</span>
+                      </div>
+                      <div className="mt-2 flex justify-between items-center">
+                        <span className="font-bold text-white uppercase">Total</span>
+                        <span className="text-lg font-black text-white">₱{Number(selectedOrder.total || 0).toLocaleString("en-PH")}</span>
                       </div>
                     </div>
                   </div>
-                ))}
+
+                  <div className="md:w-72 flex-shrink-0 space-y-6">
+                    <div>
+                      <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Payment Proof</h3>
+                      <a href={selectedOrder.payment?.secureProofImageUrl || selectedOrder.payment?.proofImageUrl} target="_blank" rel="noopener noreferrer" className="block relative group rounded-xl overflow-hidden border border-neutral-800 aspect-[3/4] bg-neutral-900 cursor-zoom-in">
+                        {(selectedOrder.payment?.secureProofImageUrl || selectedOrder.payment?.proofImageUrl) ? (
+                          <img src={selectedOrder.payment?.secureProofImageUrl || selectedOrder.payment?.proofImageUrl} alt="Payment Proof" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">No image</div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="bg-black/80 text-white text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-sm">View Full Size</span>
+                        </div>
+                      </a>
+                    </div>
+
+                    <div className="bg-black p-4 rounded-xl border border-neutral-800">
+                      <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Status</label>
+                      <select
+                        value={selectedOrder.status === "pending_verification" ? "pending_payment" : selectedOrder.status}
+                        onChange={(e) => updateOrderStatus(selectedOrder.id, e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-700 text-white text-sm px-3 py-2 rounded-lg font-bold"
+                      >
+                        <option value="pending_payment">Pending Payment</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

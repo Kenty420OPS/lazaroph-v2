@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
     const cartStr = formData.get("cart") as string;
     const total = parseFloat(formData.get("total") as string);
     const paymentImage = formData.get("paymentImage") as File;
+    const uid = formData.get("uid") as string | null;
 
     if (!name || !contact || !address || !referenceNumber || !cartStr || !paymentImage) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
       },
       items: cart,
       total,
-      status: "pending_verification",
+      status: "pending_payment",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -95,6 +97,48 @@ export async function POST(request: Request) {
     }
 
     const docRef = await adminDb.collection("orders").add(orderPayload);
+
+    if (uid) {
+      try {
+        const convRef = adminDb.collection("conversations").doc(uid);
+        const messagesRef = convRef.collection("messages");
+        
+        const convSnap = await convRef.get();
+        const batch = adminDb.batch();
+        const text = `Thank you for your order! Your Order ID is: ${docRef.id}. You can use this to track your order.`;
+        
+        if (!convSnap.exists) {
+          batch.set(convRef, {
+            customerId: uid,
+            customerName: name || "Guest",
+            lastMessage: text,
+            updatedAt: FieldValue.serverTimestamp(),
+            unreadAdmin: 0,
+            unreadCustomer: 1
+          });
+        } else {
+          batch.update(convRef, {
+            lastMessage: text,
+            updatedAt: FieldValue.serverTimestamp(),
+            unreadCustomer: FieldValue.increment(1)
+          });
+        }
+
+        const newMsgRef = messagesRef.doc();
+        batch.set(newMsgRef, {
+          senderId: "system",
+          role: "admin",
+          text,
+          createdAt: FieldValue.serverTimestamp(),
+          read: false
+        });
+
+        await batch.commit();
+      } catch (chatError) {
+        console.error("Failed to send automated chat message:", chatError);
+        // Do not fail the order creation if the chat message fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

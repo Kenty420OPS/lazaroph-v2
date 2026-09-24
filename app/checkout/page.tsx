@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@/lib/firebase";
+import { signInAnonymously } from "firebase/auth";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -107,6 +109,17 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Ensure user has a uid for chat association
+      let uid = auth.currentUser?.uid;
+      if (!uid) {
+        try {
+          const userCred = await signInAnonymously(auth);
+          uid = userCred.user.uid;
+        } catch (authErr) {
+          console.error("Failed to sign in anonymously", authErr);
+        }
+      }
+
       const formData = new FormData();
       formData.append("name", name);
       formData.append("contact", contact);
@@ -121,6 +134,9 @@ export default function CheckoutPage() {
       formData.append("cart", JSON.stringify(cart));
       formData.append("total", finalTotal.toString());
       formData.append("paymentImage", processedImage);
+      if (uid) {
+        formData.append("uid", uid);
+      }
 
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -133,7 +149,7 @@ export default function CheckoutPage() {
       }
 
       clearCart();
-      router.push("/checkout/success");
+      router.push(`/checkout/success?orderId=${data.orderId}`);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
