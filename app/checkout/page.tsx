@@ -143,27 +143,39 @@ export default function CheckoutPage() {
         body: formData,
       });
 
+      // Guard 1: surface HTTP-level errors before parsing body
+      if (!res.ok) {
+        let errMsg = "Checkout failed";
+        try { errMsg = (await res.json()).error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+
       const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || "Checkout failed");
       }
 
-      // Save to local storage for "Recent Orders" in Cart
-      try {
-        const stored = localStorage.getItem("recent_orders");
-        let orders = stored ? JSON.parse(stored) : [];
-        const orderSummary = {
-          id: data.orderId,
-          date: new Date().toISOString(),
-          items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity })),
-          total: finalTotal
-        };
-        // Remove duplicate if it somehow exists (or string formats from previous version)
-        orders = orders.filter((o: any) => (typeof o === 'string' ? o : o.id) !== data.orderId);
-        orders = [orderSummary, ...orders].slice(0, 5);
-        localStorage.setItem("recent_orders", JSON.stringify(orders));
-      } catch (err) {
-        console.error("Failed to save recent order", err);
+      // Guard 2: only persist when we have a confirmed orderId
+      if (data.orderId) {
+        try {
+          const stored = localStorage.getItem("recent_orders");
+          // Guard 3: inner try/catch so corrupt storage never surfaces as a checkout error
+          let orders: any[] = [];
+          try { orders = stored ? JSON.parse(stored) : []; } catch { orders = []; }
+          const orderSummary = {
+            id: data.orderId,
+            date: new Date().toISOString(),
+            // Only store display-safe fields — NO contact, NO address
+            items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity })),
+            total: finalTotal,
+          };
+          // Deduplicate and cap at 5 entries
+          orders = orders.filter((o: any) => (typeof o === 'string' ? o : o.id) !== data.orderId);
+          orders = [orderSummary, ...orders].slice(0, 5);
+          localStorage.setItem("recent_orders", JSON.stringify(orders));
+        } catch (err) {
+          console.error("Failed to save recent order", err);
+        }
       }
 
       clearCart();

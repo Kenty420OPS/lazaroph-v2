@@ -10,6 +10,7 @@ export default function CartPage() {
   const router = useRouter();
   
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
       const stored = localStorage.getItem("recent_orders");
@@ -18,6 +19,11 @@ export default function CartPage() {
       }
     } catch (err) {}
   }, []);
+
+  const clearRecentOrders = () => {
+    localStorage.removeItem("recent_orders");
+    setRecentOrders([]);
+  };
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-neutral-800">
@@ -154,7 +160,23 @@ export default function CartPage() {
                           {order.items.slice(0, 2).map((item: any, i: number) => (
                             <div key={i} className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-black rounded border border-neutral-800 overflow-hidden flex-shrink-0">
-                                {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />}
+                                {item.imageUrl && !failedImages.has(`${order.id}-${i}`) ? (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                    onError={() =>
+                                      setFailedImages(prev => new Set(prev).add(`${order.id}-${i}`))
+                                    }
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                )}
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-semibold text-white truncate">{item.name}</p>
@@ -183,6 +205,14 @@ export default function CartPage() {
                   </div>
                 );
               })}
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={clearRecentOrders}
+                className="text-xs text-neutral-500 hover:text-red-400 underline underline-offset-2 transition-colors"
+              >
+                Clear history
+              </button>
             </div>
           </div>
         )}
