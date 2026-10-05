@@ -28,7 +28,7 @@ export default function ChatWidget() {
       if (user) {
         try {
           const tokenResult = await user.getIdTokenResult();
-          if (tokenResult.claims.role === 'admin') {
+          if (tokenResult.claims.role === 'admin' || tokenResult.claims.role === 'superadmin') {
             setIsAdmin(true);
             setSessionId(null);
             setMessages([]);

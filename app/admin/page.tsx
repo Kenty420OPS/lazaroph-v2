@@ -66,7 +66,7 @@ export default function AdminPage() {
           // Force refresh token to get the latest custom claims during rollout
           const token = await currentUser.getIdTokenResult(true);
 
-          if (token.claims.role === 'admin') {
+          if (token.claims.role === 'admin' || token.claims.role === 'superadmin') {
             setUser(currentUser);
             setAuthLoading(false);
             verifyAndLoad();
