@@ -1,33 +1,97 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { getShippingFee, VALID_COURIERS, VALID_REGIONS } from "@/lib/shipping";
+
+const MAX_QTY_PER_ITEM = 99;
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    
+
     const name = formData.get("name") as string;
     const contact = formData.get("contact") as string;
     const address = formData.get("address") as string;
     const courier = formData.get("courier") as string;
     const region = formData.get("region") as string;
-    const shippingFee = parseFloat(formData.get("shippingFee") as string) || 0;
     const paymentMethod = formData.get("paymentMethod") as string;
     const referenceNumber = formData.get("referenceNumber") as string;
     const cartStr = formData.get("cart") as string;
-    const total = parseFloat(formData.get("total") as string);
     const paymentImage = formData.get("paymentImage") as File;
+    const uid = formData.get("uid") as string | null;
 
     if (!name || !contact || !address || !referenceNumber || !cartStr || !paymentImage) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
-    let cart = [];
+    // NOTE: client-sent `total` and `shippingFee` are intentionally ignored.
+    // All pricing is recomputed server-side below.
+
+    if (!courier || !VALID_COURIERS.includes(courier as any)) {
+      return NextResponse.json({ success: false, error: "Invalid courier" }, { status: 400 });
+    }
+
+    if (courier === "LBC" && !VALID_REGIONS.includes(region)) {
+      return NextResponse.json({ success: false, error: "Invalid or missing region for LBC" }, { status: 400 });
+    }
+
+    let cart: any[] = [];
     try {
       const parsed = JSON.parse(cartStr);
       cart = Array.isArray(parsed) ? parsed : (typeof parsed === 'object' && parsed !== null ? Object.values(parsed) : []);
     } catch (e) {
       return NextResponse.json({ success: false, error: "Invalid cart data" }, { status: 400 });
     }
+
+    if (!Array.isArray(cart) || cart.length === 0) {
+      return NextResponse.json({ success: false, error: "Cart is empty" }, { status: 400 });
+    }
+
+    // Validate each item shape and recompute pricing from Firestore
+    const items: any[] = [];
+    let subtotal = 0;
+
+    for (const raw of cart) {
+      const id = raw?.id;
+      const quantity = raw?.quantity;
+
+      if (typeof id !== "string" || !id) {
+        return NextResponse.json({ success: false, error: "Each cart item must have a product id" }, { status: 400 });
+      }
+      if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QTY_PER_ITEM) {
+        return NextResponse.json({ success: false, error: `Quantity for product ${id} must be a positive integer no greater than ${MAX_QTY_PER_ITEM}` }, { status: 400 });
+      }
+
+      const snap = await adminDb.collection("products").doc(id).get();
+      if (!snap.exists) {
+        return NextResponse.json({ success: false, error: `Product not found: ${id}` }, { status: 400 });
+      }
+
+      const product: any = snap.data();
+      if (product.deleted === true || product.hidden === true || product.isActive === false) {
+        return NextResponse.json({ success: false, error: `Product is not available: ${id}` }, { status: 400 });
+      }
+      if (typeof product.stock === "number" && product.stock < 1) {
+        return NextResponse.json({ success: false, error: `Product is out of stock: ${id}` }, { status: 400 });
+      }
+
+      const price = Number(product.price);
+      if (!Number.isFinite(price) || price < 0) {
+        return NextResponse.json({ success: false, error: `Product has invalid price: ${id}` }, { status: 400 });
+      }
+
+      items.push({
+        id,
+        name: product.name || product.title || "",
+        price,
+        imageUrl: product.imageUrl || product.mainImageUrl || "",
+        quantity,
+      });
+      subtotal += price * quantity;
+    }
+
+    const shippingFee = getShippingFee(courier, region);
+    const total = subtotal + shippingFee;
 
     // 1. Validate payment image
     if (paymentImage.size > 5 * 1024 * 1024) {
@@ -83,9 +147,10 @@ export async function POST(request: Request) {
         proofImageUrl: paymentImageUrl,
         proofImagePath: storagePath, // Stored for generating secure signed URLs later
       },
-      items: cart,
+      items,
+      subtotal,
       total,
-      status: "pending_verification",
+      status: "pending_payment",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -95,6 +160,48 @@ export async function POST(request: Request) {
     }
 
     const docRef = await adminDb.collection("orders").add(orderPayload);
+
+    if (uid) {
+      try {
+        const convRef = adminDb.collection("conversations").doc(uid);
+        const messagesRef = convRef.collection("messages");
+        
+        const convSnap = await convRef.get();
+        const batch = adminDb.batch();
+        const text = `Thank you for your order! Your Order ID is: ${docRef.id}. You can use this to track your order.`;
+        
+        if (!convSnap.exists) {
+          batch.set(convRef, {
+            customerId: uid,
+            customerName: name || "Guest",
+            lastMessage: text,
+            updatedAt: FieldValue.serverTimestamp(),
+            unreadAdmin: 0,
+            unreadCustomer: 1
+          });
+        } else {
+          batch.update(convRef, {
+            lastMessage: text,
+            updatedAt: FieldValue.serverTimestamp(),
+            unreadCustomer: FieldValue.increment(1)
+          });
+        }
+
+        const newMsgRef = messagesRef.doc();
+        batch.set(newMsgRef, {
+          senderId: "system",
+          role: "admin",
+          text,
+          createdAt: FieldValue.serverTimestamp(),
+          read: false
+        });
+
+        await batch.commit();
+      } catch (chatError) {
+        console.error("Failed to send automated chat message:", chatError);
+        // Do not fail the order creation if the chat message fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

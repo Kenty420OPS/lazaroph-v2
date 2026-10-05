@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@/lib/firebase";
+import { signInAnonymously } from "firebase/auth";
+import { getShippingFee } from "@/lib/shipping";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -21,12 +24,7 @@ export default function CheckoutPage() {
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentImage, setPaymentImage] = useState<File | null>(null);
 
-  let shippingFee = 0;
-  if (courier === "LBC") {
-    if (region === "Luzon") shippingFee = 250;
-    else if (region === "Visayas") shippingFee = 320;
-    else if (region === "Mindanao") shippingFee = 320;
-  }
+  const shippingFee = getShippingFee(courier, region);
   const finalTotal = cartTotal + shippingFee;
 
   const compressImage = (file: File): Promise<File> => {
@@ -107,6 +105,17 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Ensure user has a uid for chat association
+      let uid = auth.currentUser?.uid;
+      if (!uid) {
+        try {
+          const userCred = await signInAnonymously(auth);
+          uid = userCred.user.uid;
+        } catch (authErr) {
+          console.error("Failed to sign in anonymously", authErr);
+        }
+      }
+
       const formData = new FormData();
       formData.append("name", name);
       formData.append("contact", contact);
@@ -121,19 +130,52 @@ export default function CheckoutPage() {
       formData.append("cart", JSON.stringify(cart));
       formData.append("total", finalTotal.toString());
       formData.append("paymentImage", processedImage);
+      if (uid) {
+        formData.append("uid", uid);
+      }
 
       const res = await fetch("/api/orders", {
         method: "POST",
         body: formData,
       });
 
+      // Guard 1: surface HTTP-level errors before parsing body
+      if (!res.ok) {
+        let errMsg = "Checkout failed";
+        try { errMsg = (await res.json()).error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+
       const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || "Checkout failed");
       }
 
+      // Guard 2: only persist when we have a confirmed orderId
+      if (data.orderId) {
+        try {
+          const stored = localStorage.getItem("recent_orders");
+          // Guard 3: inner try/catch so corrupt storage never surfaces as a checkout error
+          let orders: any[] = [];
+          try { orders = stored ? JSON.parse(stored) : []; } catch { orders = []; }
+          const orderSummary = {
+            id: data.orderId,
+            date: new Date().toISOString(),
+            // Only store display-safe fields — NO contact, NO address
+            items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity })),
+            total: finalTotal,
+          };
+          // Deduplicate and cap at 5 entries
+          orders = orders.filter((o: any) => (typeof o === 'string' ? o : o.id) !== data.orderId);
+          orders = [orderSummary, ...orders].slice(0, 5);
+          localStorage.setItem("recent_orders", JSON.stringify(orders));
+        } catch (err) {
+          console.error("Failed to save recent order", err);
+        }
+      }
+
       clearCart();
-      router.push("/checkout/success");
+      router.push(`/checkout/success?orderId=${data.orderId}`);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
