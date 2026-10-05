@@ -210,7 +210,7 @@ export default function AdminPage() {
     try {
       const authHeader = await getAuthHeader();
       if (!authHeader) return;
-      const response = await fetch(`/api/admin/orders/${id}`, {
+      const response = await fetch(`/api/admin/orders?id=${id}`, {
         method: "PATCH",
         headers: {
           "Authorization": authHeader,

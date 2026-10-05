@@ -74,3 +74,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// PATCH /api/admin/orders?id=<orderId> — update order status
+// Merged from former /api/admin/orders/[id]/route.ts to reduce serverless function count.
+export async function PATCH(request: Request) {
+  try {
+    const auth = await verifyAdminRequest(request);
+    if (!auth.isAdmin) {
+      return NextResponse.json(
+        { success: false, error: auth.error || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Order ID is required" }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const { status } = body;
+
+    if (!status) {
+      return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });
+    }
+
+    await adminDb!.collection("orders").doc(id).update({ 
+      status, 
+      updatedAt: new Date().toISOString() 
+    });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error: any) {
+    console.error("Error updating order:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
