@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
+import { getShippingFee } from "@/lib/shipping";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -23,12 +24,7 @@ export default function CheckoutPage() {
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentImage, setPaymentImage] = useState<File | null>(null);
 
-  let shippingFee = 0;
-  if (courier === "LBC") {
-    if (region === "Luzon") shippingFee = 250;
-    else if (region === "Visayas") shippingFee = 320;
-    else if (region === "Mindanao") shippingFee = 320;
-  }
+  const shippingFee = getShippingFee(courier, region);
   const finalTotal = cartTotal + shippingFee;
 
   const compressImage = (file: File): Promise<File> => {
