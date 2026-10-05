@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent, useRef } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import AdminManagement from "@/components/AdminManagement";
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,7 +30,8 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt">("products");
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
@@ -68,6 +70,7 @@ export default function AdminPage() {
 
           if (token.claims.role === 'admin' || token.claims.role === 'superadmin') {
             setUser(currentUser);
+            setUserRole((token.claims.role as string) || null);
             setAuthLoading(false);
             verifyAndLoad();
             verifyAndLoadOrders();
@@ -392,6 +395,14 @@ export default function AdminPage() {
                 </span>
               )}
             </button>
+            {userRole === 'superadmin' && (
+              <button
+                onClick={() => setActiveTab("adminmgmt")}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "adminmgmt" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              >
+                Admin Management
+              </button>
+            )}
           </div>
           <span className="text-xs text-neutral-400">{user.email}</span>
           <button onClick={handleLogout} className="bg-neutral-900 border border-neutral-700 px-4 py-2 text-xs font-bold rounded-lg hover:bg-neutral-800 transition-colors">Logout</button>
@@ -734,6 +745,10 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === "adminmgmt" && userRole === 'superadmin' && (
+          <AdminManagement currentUid={user.uid} />
         )}
 
         {activeTab === "chats" && (
