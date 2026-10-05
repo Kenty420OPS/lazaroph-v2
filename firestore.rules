@@ -9,7 +9,7 @@ service cloud.firestore {
     
     // Admins are authenticated and have the 'admin' custom claim 
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.get('role', null) == 'admin';
+      return isAuthenticated() && request.auth.token.get('role', null) in ['admin', 'superadmin'];
     }
 
     // A non-anonymous user is an authenticated user who did not sign in via Anonymous Auth.
