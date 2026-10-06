@@ -50,3 +50,30 @@
 2. Admin panel (add/edit/delete products, image upload)
 3. Customer ordering (cart, checkout, order tracking)
 4. Admin-customer chat (built LAST, after 1–3 are stable)
+
+## Done Missions
+
+### Mission 9 (Done)
+Store Settings and payment methods management.
+- Payment methods (Gcash, Pay Maya, BPI) are no longer hardcoded. Stored in the Firestore `paymentMethods` collection.
+- Superadmin-only API: /api/admin/payment-methods (create, edit, activate/deactivate, reorder) and /api/admin/payment-methods/qr (upload, replace, remove QR).
+- Public read API /api/payment-methods returns active methods only; checkout loads from it.
+- Storage rules: public read for payment-methods/ QR images.
+- Orders: server-side validation of the selected payment method (must exist and be active, otherwise "Selected payment method is not available") and a snapshot of the method stored on the order.
+- Admin UI: Store Settings tab (superadmin only), table above, form below.
+- Verified on the Vercel preview: normal admin gets 403 on GET/POST payment-methods and 200 on /api/admin/orders; no token gets 401; deactivated method is rejected at order submit; QR loads for logged-out customers.
+- Branch: feature/mission-9-store-settings (8 commits, 7c1f9ca..8bfc00a), PR open, not yet merged.
+- Deploy note: storage rules must be deployed to the production Firebase project.
+
+## Current Mission
+
+### Mission 10 (backlog)
+1. Checkout: "Processing Order..." button does not reset after the server rejects an order; show a clear error and reset the button.
+2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds.
+3. Admin Management: race condition on the last-superadmin check; use a Firestore transaction or lock document (discuss in read-only Phase 1 first).
+4. Admin list filter: filter by customClaims.role instead of providerData.length === 0 (Google sign-in admins can be hidden).
+5. Seed script (outside repo, lazaroph-seed): resolve firebase-admin via createRequire from the repo root, and merge existing claims instead of overwriting.
+6. Cleanup: remove the redundant `block` class next to `flex` on the QR anchor in PaymentMethodsSettings.tsx.
+7. Turnover to the new owner: create their superadmin account, remove montoyaclark8@gmail.com and other test accounts (Admin Management, then Firebase Auth), review Firebase, Vercel, GitHub, and domain ownership.
+8. Optional: add Vercel preview domains to Firebase Authorized domains if Google sign-in is needed on previews.
+9. Verify the deactivate-then-reload case on checkout (an inactive method disappears from the dropdown) and confirm the full payment method snapshot (type, account name, account number) on the order doc. Both were skipped during Mission 9 verification.
