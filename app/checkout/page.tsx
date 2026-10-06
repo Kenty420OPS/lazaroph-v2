@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -20,9 +20,45 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState("");
   const [courier, setCourier] = useState("Lalamove");
   const [region, setRegion] = useState("Luzon");
-  const [paymentMethod, setPaymentMethod] = useState("GCash");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentMethodId, setPaymentMethodId] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(true);
+  const [methodsUnavailable, setMethodsUnavailable] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentImage, setPaymentImage] = useState<File | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/payment-methods", { cache: "no-store" });
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !data.success || !Array.isArray(data.methods) || data.methods.length === 0) {
+          setMethodsUnavailable(true);
+          setPaymentMethods([]);
+        } else {
+          setPaymentMethods(data.methods);
+          setPaymentMethod(data.methods[0].name);
+          setPaymentMethodId(data.methods[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load payment methods:", err);
+        if (!cancelled) {
+          setMethodsUnavailable(true);
+          setPaymentMethods([]);
+        }
+      } finally {
+        if (!cancelled) setMethodsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) || null;
 
   const shippingFee = getShippingFee(courier, region);
   const finalTotal = cartTotal + shippingFee;
@@ -126,6 +162,7 @@ export default function CheckoutPage() {
         formData.append("shippingFee", shippingFee.toString());
       }
       formData.append("paymentMethod", paymentMethod);
+      formData.append("paymentMethodId", paymentMethodId);
       formData.append("referenceNumber", referenceNumber);
       formData.append("cart", JSON.stringify(cart));
       formData.append("total", finalTotal.toString());
@@ -287,28 +324,47 @@ export default function CheckoutPage() {
             <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Payment Details</h2>
             
             <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-lg flex flex-col sm:flex-row items-center gap-6 mb-6">
-              <div className="w-32 h-32 bg-black border border-neutral-700 flex items-center justify-center rounded-lg flex-shrink-0">
-                <span className="text-xs text-neutral-500 text-center">QR Code<br/>Placeholder</span>
-              </div>
-              <div className="text-sm text-neutral-300">
-                <p className="font-bold text-white mb-2">Instructions:</p>
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>Scan the QR code or send payment manually.</li>
-                  <li>GCash / Maya: 09123456789 (LAZAROPH)</li>
-                  <li>BDO / BPI: Available upon request</li>
-                  <li>Please upload a clear screenshot of your transaction receipt.</li>
-                </ul>
-              </div>
+              {methodsLoading ? (
+                <p className="text-sm text-neutral-400">Loading payment methods...</p>
+              ) : methodsUnavailable || !selectedMethod ? (
+                <p className="text-sm text-red-400 font-bold">Payment methods are unavailable. Please contact the store.</p>
+              ) : (
+                <>
+                  <div className="w-32 h-32 bg-black border border-neutral-700 flex items-center justify-center rounded-lg flex-shrink-0">
+                    {selectedMethod.qrUrl ? (
+                      <img src={selectedMethod.qrUrl} alt={`${selectedMethod.name} QR Code`} className="w-full h-full object-contain rounded-lg" />
+                    ) : (
+                      <span className="text-xs text-neutral-500 text-center">No QR<br/>available</span>
+                    )}
+                  </div>
+                  <div className="text-sm text-neutral-300">
+                    <p className="font-bold text-white mb-2">{selectedMethod.name}</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li>Account Name: {selectedMethod.accountName}</li>
+                      <li>Account Number: {selectedMethod.accountNumber}</li>
+                      {selectedMethod.instructions ? <li>{selectedMethod.instructions}</li> : null}
+                      <li>Please upload a clear screenshot of your transaction receipt.</li>
+                    </ul>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Payment Method *</label>
-                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
-                  <option value="GCash">GCash</option>
-                  <option value="Maya">Maya</option>
-                  <option value="BDO">BDO</option>
-                  <option value="BPI">BPI</option>
+                <select
+                  value={paymentMethodId}
+                  onChange={(e) => {
+                    const m = paymentMethods.find((x) => x.id === e.target.value);
+                    setPaymentMethodId(e.target.value);
+                    setPaymentMethod(m ? m.name : "");
+                  }}
+                  className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                >
+                  {paymentMethods.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -325,7 +381,7 @@ export default function CheckoutPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || methodsLoading || methodsUnavailable || !selectedMethod}
             className="w-full py-4 rounded-lg bg-white text-black font-black hover:bg-neutral-200 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed mt-8"
           >
             {loading ? "Processing Order..." : "Submit Order"}
