@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const address = formData.get("address") as string;
     const courier = formData.get("courier") as string;
     const region = formData.get("region") as string;
-    const paymentMethod = formData.get("paymentMethod") as string;
+    const paymentMethodId = formData.get("paymentMethodId") as string;
     const referenceNumber = formData.get("referenceNumber") as string;
     const cartStr = formData.get("cart") as string;
     const paymentImage = formData.get("paymentImage") as File;
@@ -93,6 +93,22 @@ export async function POST(request: Request) {
     const shippingFee = getShippingFee(courier, region);
     const total = subtotal + shippingFee;
 
+    // Validate the selected payment method BEFORE validating/uploading the proof image
+    let paymentMethodDoc: any = null;
+    if (typeof paymentMethodId !== "string" || paymentMethodId.length < 1 || paymentMethodId.length > 128 || paymentMethodId.includes("/")) {
+      return NextResponse.json({ success: false, error: "Invalid payment method" }, { status: 400 });
+    }
+    try {
+      const pmSnap = await adminDb.collection("paymentMethods").doc(paymentMethodId).get();
+      if (!pmSnap.exists || pmSnap.data()?.active !== true) {
+        return NextResponse.json({ success: false, error: "Selected payment method is not available" }, { status: 400 });
+      }
+      paymentMethodDoc = pmSnap.data();
+    } catch (pmError: any) {
+      console.error("Failed to load payment method:", pmError);
+      return NextResponse.json({ success: false, error: "Failed to process order" }, { status: 500 });
+    }
+
     // 1. Validate payment image
     if (paymentImage.size > 5 * 1024 * 1024) {
       return NextResponse.json({ success: false, error: "Payment image must be under 5MB" }, { status: 400 });
@@ -142,7 +158,12 @@ export async function POST(request: Request) {
         shippingFee,
       },
       payment: {
-        method: paymentMethod,
+        method: paymentMethodDoc.name,
+        methodId: paymentMethodId,
+        methodType: paymentMethodDoc.type,
+        accountName: paymentMethodDoc.accountName,
+        accountNumber: paymentMethodDoc.accountNumber,
+        instructions: paymentMethodDoc.instructions ?? null,
         referenceNumber,
         proofImageUrl: paymentImageUrl,
         proofImagePath: storagePath, // Stored for generating secure signed URLs later
