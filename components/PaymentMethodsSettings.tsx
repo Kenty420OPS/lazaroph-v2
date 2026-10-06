@@ -387,7 +387,7 @@ export default function PaymentMethodsSettings() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="max-w-7xl mx-auto flex flex-col gap-8">
       <input
         ref={qrInputRef}
         type="file"
@@ -395,7 +395,7 @@ export default function PaymentMethodsSettings() {
         className="hidden"
         onChange={handleQrFileChange}
       />
-      <div className="lg:col-span-5">
+      <div className="max-w-2xl w-full order-2">
         <form onSubmit={handleSubmit} className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <h2 className="text-base font-bold uppercase tracking-wider border-b border-neutral-800 pb-2 mb-4">
             {editingId ? "Edit Payment Method" : "Add Payment Method"}
@@ -448,7 +448,7 @@ export default function PaymentMethodsSettings() {
         </form>
       </div>
 
-      <div className="lg:col-span-7 space-y-4">
+      <div className="w-full order-1 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
           <h2 className="text-base font-bold text-white uppercase tracking-wider">Payment Methods</h2>
           <button onClick={loadMethods} className="text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-lg">Refresh</button>
@@ -465,34 +465,34 @@ export default function PaymentMethodsSettings() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-neutral-800 text-xs text-neutral-500 uppercase tracking-wider">
-                  <th className="p-4 font-bold">Name</th>
-                  <th className="p-4 font-bold">Type</th>
-                  <th className="p-4 font-bold">Account Name</th>
-                  <th className="p-4 font-bold">Account Number</th>
-                  <th className="p-4 font-bold">QR</th>
-                  <th className="p-4 font-bold">Status</th>
-                  <th className="p-4 font-bold">Order</th>
-                  <th className="p-4 font-bold">Actions</th>
+                  <th className="px-3 py-3 font-bold align-middle">Name</th>
+                  <th className="px-3 py-3 font-bold align-middle">Type</th>
+                  <th className="px-3 py-3 font-bold align-middle">Account Name</th>
+                  <th className="px-3 py-3 font-bold align-middle">Account Number</th>
+                  <th className="px-3 py-3 font-bold align-middle">QR</th>
+                  <th className="px-3 py-3 font-bold align-middle">Status</th>
+                  <th className="px-3 py-3 font-bold align-middle">Order</th>
+                  <th className="px-3 py-3 font-bold align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {methods.map((m, i) => (
                   <tr key={m.id} className="border-b border-neutral-800 hover:bg-neutral-900/50 transition-colors text-sm">
-                    <td className="p-4 font-bold text-white">{m.name}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${m.type === "ewallet" ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-purple-500/10 text-purple-500 border border-purple-500/20"}`}>
+                    <td className="px-3 py-3 align-middle font-bold text-white">{m.name}</td>
+                    <td className="px-3 py-3 align-middle">
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${m.type === "ewallet" ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-purple-500/10 text-purple-500 border border-purple-500/20"}`}>
                         {m.type === "ewallet" ? "E-wallet" : "Bank"}
                       </span>
                     </td>
-                    <td className="p-4 text-neutral-400">{m.accountName}</td>
-                    <td className="p-4 text-neutral-400">{m.accountNumber}</td>
-                    <td className="p-4">
+                    <td className="px-3 py-3 align-middle text-neutral-400 whitespace-nowrap">{m.accountName}</td>
+                    <td className="px-3 py-3 align-middle text-neutral-400 whitespace-nowrap">{m.accountNumber}</td>
+                    <td className="px-3 py-3 align-middle">
                       {m.qrUrl ? (
-                        <a href={m.qrUrl} target="_blank" rel="noopener noreferrer">
+                        <a href={m.qrUrl} target="_blank" rel="noopener noreferrer" className="block w-14 h-14 shrink-0 border border-neutral-800 rounded bg-black overflow-hidden flex items-center justify-center">
                           <img
                             src={m.qrUrl}
                             alt="QR code"
-                            className="w-12 h-12 object-contain bg-black border border-neutral-800 rounded"
+                            className="max-w-full max-h-full object-contain"
                             onError={(e) => {
                               const parent = e.currentTarget.parentElement;
                               if (parent) parent.innerHTML = '<span class="text-xs text-neutral-500">QR not loading</span>';
@@ -503,25 +503,25 @@ export default function PaymentMethodsSettings() {
                         <span className="text-xs text-neutral-500">No QR</span>
                       )}
                     </td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${m.active ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+                    <td className="px-3 py-3 align-middle">
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${m.active ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
                         {m.active ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="p-4 text-neutral-400">{m.sortOrder}</td>
-                    <td className="p-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button onClick={() => startEdit(m)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg">Edit</button>
-                        <button disabled={submitting} onClick={() => toggleActive(m)} className="px-3 py-1.5 bg-red-950 text-xs font-bold text-red-300 rounded-lg disabled:opacity-30">
+                    <td className="px-3 py-3 align-middle text-neutral-400">{m.sortOrder}</td>
+                    <td className="px-3 py-3 align-middle">
+                      <div className="flex flex-nowrap gap-1.5 justify-end">
+                        <button onClick={() => startEdit(m)} className="px-2.5 py-1 text-[11px] font-bold bg-neutral-900 text-white rounded-lg whitespace-nowrap">Edit</button>
+                        <button disabled={submitting} onClick={() => toggleActive(m)} className="px-2.5 py-1 text-[11px] font-bold bg-red-950 text-red-300 rounded-lg whitespace-nowrap disabled:opacity-30">
                           {m.active ? "Deactivate" : "Activate"}
                         </button>
-                        <button disabled={submitting || i === 0} onClick={() => move(i, -1)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg disabled:opacity-30">Up</button>
-                        <button disabled={submitting || i === methods.length - 1} onClick={() => move(i, 1)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg disabled:opacity-30">Down</button>
-                        <button disabled={submitting} onClick={() => triggerQrUpload(m)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg disabled:opacity-30">
+                        <button disabled={submitting || i === 0} onClick={() => move(i, -1)} className="px-2.5 py-1 text-[11px] font-bold bg-neutral-900 text-white rounded-lg whitespace-nowrap disabled:opacity-30">Up</button>
+                        <button disabled={submitting || i === methods.length - 1} onClick={() => move(i, 1)} className="px-2.5 py-1 text-[11px] font-bold bg-neutral-900 text-white rounded-lg whitespace-nowrap disabled:opacity-30">Down</button>
+                        <button disabled={submitting} onClick={() => triggerQrUpload(m)} className="px-2.5 py-1 text-[11px] font-bold bg-neutral-900 text-white rounded-lg whitespace-nowrap disabled:opacity-30">
                           {m.qrUrl ? "Replace QR" : "Upload QR"}
                         </button>
                         {m.qrUrl && (
-                          <button disabled={submitting} onClick={() => removeQr(m)} className="px-3 py-1.5 bg-red-950 text-xs font-bold text-red-300 rounded-lg disabled:opacity-30">
+                          <button disabled={submitting} onClick={() => removeQr(m)} className="px-2.5 py-1 text-[11px] font-bold bg-red-950 text-red-300 rounded-lg whitespace-nowrap disabled:opacity-30">
                             Remove QR
                           </button>
                         )}
