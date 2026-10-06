@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent, useRef } from "react";
 import { auth } from "@/lib/firebase";
 
 type PaymentMethodRow = {
@@ -10,11 +10,58 @@ type PaymentMethodRow = {
   accountName: string;
   accountNumber: string;
   instructions: string | null;
+  qrUrl: string | null;
   active: boolean;
   sortOrder: number;
 };
 
-const ACCOUNT_NUMBER_RE = /^[0-9 \-]+$/;
+  const ACCOUNT_NUMBER_RE = /^[0-9 \-]+$/;
+
+  // Client-side QR prepare step: returns a File ready for upload.
+  // <= 1MB files pass through; larger ones are downscaled (max 1024px
+  // longest side) and exported as PNG, then JPEG q0.92 if still > 1MB.
+  // Does not trust file.type; the server validates via magic bytes.
+  const prepareQrFile = async (file: File): Promise<File> => {
+    const MAX_BYTES = 1 * 1024 * 1024;
+    if (file.size <= MAX_BYTES) return file;
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read image"));
+    });
+
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new window.Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Failed to load image"));
+      el.src = dataUrl;
+    });
+
+    const longest = Math.max(img.width, img.height);
+    const scale = longest > 1024 ? 1024 / longest : 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const toBlob = (type: string, quality?: number) =>
+      new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+
+    const pngBlob = await toBlob("image/png");
+    if (pngBlob && pngBlob.size <= MAX_BYTES) {
+      return new File([pngBlob], "qr.png", { type: "image/png" });
+    }
+
+    const jpegBlob = await toBlob("image/jpeg", 0.92);
+    if (jpegBlob && jpegBlob.size <= MAX_BYTES) {
+      return new File([jpegBlob], "qr.jpg", { type: "image/jpeg" });
+    }
+
+    throw new Error("Image is too large. Please use a smaller QR image.");
+  };
 
 export default function PaymentMethodsSettings() {
   const [methods, setMethods] = useState<PaymentMethodRow[]>([]);
@@ -23,6 +70,8 @@ export default function PaymentMethodsSettings() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const qrInputRef = useRef<HTMLInputElement | null>(null);
+  const qrTargetIdRef = useRef<string | null>(null);
 
   const [type, setType] = useState<"ewallet" | "bank">("ewallet");
   const [name, setName] = useState("");
@@ -199,6 +248,89 @@ export default function PaymentMethodsSettings() {
     }
   };
 
+  const triggerQrUpload = (m: PaymentMethodRow) => {
+    qrTargetIdRef.current = m.id;
+    if (qrInputRef.current) {
+      qrInputRef.current.value = "";
+      qrInputRef.current.click();
+    }
+  };
+
+  const handleQrFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const id = qrTargetIdRef.current;
+    e.target.value = "";
+    if (!file || !id) return;
+
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+    try {
+      let prepared: File;
+      try {
+        prepared = await prepareQrFile(file);
+      } catch (prepErr: any) {
+        setError(prepErr.message || "Image is too large. Please use a smaller QR image.");
+        return;
+      }
+
+      const authHeader = await getAuthHeader();
+      if (!authHeader) throw new Error("Not authenticated");
+
+      const formData = new FormData();
+      formData.append("id", id);
+      formData.append("file", prepared);
+
+      const res = await fetch("/api/admin/payment-methods/qr", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("QR image updated.");
+        loadMethods();
+      } else {
+        setError(data.error || "Failed to upload QR image");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to upload QR image");
+    } finally {
+      setSubmitting(false);
+      qrTargetIdRef.current = null;
+    }
+  };
+
+  const removeQr = async (m: PaymentMethodRow) => {
+    if (!confirm(`Remove the QR image for ${m.name}?`)) return;
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+    try {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) throw new Error("Not authenticated");
+
+      const res = await fetch("/api/admin/payment-methods/qr", {
+        method: "DELETE",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: m.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("QR image removed.");
+        loadMethods();
+      } else {
+        setError(data.error || "Failed to remove QR image");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to remove QR image");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const toggleActive = (m: PaymentMethodRow) => {
     const willDeactivate = m.active;
     const activeCount = methods.filter((x) => x.active).length;
@@ -256,6 +388,13 @@ export default function PaymentMethodsSettings() {
 
   return (
     <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <input
+        ref={qrInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleQrFileChange}
+      />
       <div className="lg:col-span-5">
         <form onSubmit={handleSubmit} className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <h2 className="text-base font-bold uppercase tracking-wider border-b border-neutral-800 pb-2 mb-4">
@@ -330,6 +469,7 @@ export default function PaymentMethodsSettings() {
                   <th className="p-4 font-bold">Type</th>
                   <th className="p-4 font-bold">Account Name</th>
                   <th className="p-4 font-bold">Account Number</th>
+                  <th className="p-4 font-bold">QR</th>
                   <th className="p-4 font-bold">Status</th>
                   <th className="p-4 font-bold">Order</th>
                   <th className="p-4 font-bold">Actions</th>
@@ -347,6 +487,23 @@ export default function PaymentMethodsSettings() {
                     <td className="p-4 text-neutral-400">{m.accountName}</td>
                     <td className="p-4 text-neutral-400">{m.accountNumber}</td>
                     <td className="p-4">
+                      {m.qrUrl ? (
+                        <a href={m.qrUrl} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={m.qrUrl}
+                            alt="QR code"
+                            className="w-12 h-12 object-contain bg-black border border-neutral-800 rounded"
+                            onError={(e) => {
+                              const parent = e.currentTarget.parentElement;
+                              if (parent) parent.innerHTML = '<span class="text-xs text-neutral-500">QR not loading</span>';
+                            }}
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-xs text-neutral-500">No QR</span>
+                      )}
+                    </td>
+                    <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${m.active ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
                         {m.active ? "Active" : "Inactive"}
                       </span>
@@ -360,6 +517,14 @@ export default function PaymentMethodsSettings() {
                         </button>
                         <button disabled={submitting || i === 0} onClick={() => move(i, -1)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg disabled:opacity-30">Up</button>
                         <button disabled={submitting || i === methods.length - 1} onClick={() => move(i, 1)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg disabled:opacity-30">Down</button>
+                        <button disabled={submitting} onClick={() => triggerQrUpload(m)} className="px-3 py-1.5 bg-neutral-900 text-xs font-bold text-white rounded-lg disabled:opacity-30">
+                          {m.qrUrl ? "Replace QR" : "Upload QR"}
+                        </button>
+                        {m.qrUrl && (
+                          <button disabled={submitting} onClick={() => removeQr(m)} className="px-3 py-1.5 bg-red-950 text-xs font-bold text-red-300 rounded-lg disabled:opacity-30">
+                            Remove QR
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
