@@ -62,7 +62,7 @@ Store Settings and payment methods management.
 - Orders: server-side validation of the selected payment method (must exist and be active, otherwise "Selected payment method is not available") and a snapshot of the method stored on the order.
 - Admin UI: Store Settings tab (superadmin only), table above, form below.
 - Verified on the Vercel preview: normal admin gets 403 on GET/POST payment-methods and 200 on /api/admin/orders; no token gets 401; deactivated method is rejected at order submit; QR loads for logged-out customers.
-- Branch: feature/mission-9-store-settings (8 commits, 7c1f9ca..8bfc00a), PR open, not yet merged.
+- Branch: feature/mission-9-store-settings (8 commits, 7c1f9ca..8bfc00a), merged to main via PR #5 (merge commit daaf8b1).
 - Deploy note: storage rules must be deployed to the production Firebase project.
 
 ## Current Mission
