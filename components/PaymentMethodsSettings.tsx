@@ -118,6 +118,12 @@ export default function PaymentMethodsSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(""), 4000);
+    return () => clearTimeout(timer);
+  }, [success]);
+
   const resetForm = () => {
     setType("ewallet");
     setName("");
@@ -488,7 +494,7 @@ export default function PaymentMethodsSettings() {
                     <td className="px-3 py-3 align-middle text-neutral-400 whitespace-nowrap">{m.accountNumber}</td>
                     <td className="px-3 py-3 align-middle">
                       {m.qrUrl ? (
-                        <a href={m.qrUrl} target="_blank" rel="noopener noreferrer" className="block w-14 h-14 shrink-0 border border-neutral-800 rounded bg-black overflow-hidden flex items-center justify-center">
+                        <a href={m.qrUrl} target="_blank" rel="noopener noreferrer" className="w-14 h-14 shrink-0 border border-neutral-800 rounded bg-black overflow-hidden flex items-center justify-center">
                           <img
                             src={m.qrUrl}
                             alt="QR code"
