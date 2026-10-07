@@ -217,8 +217,6 @@ async function listAdminUsers(): Promise<Array<{
   for (let page = 0; page < 10; page++) {
     const listResult = await adminAuth.listUsers(1000, pageToken);
     for (const user of listResult.users) {
-      // Never include anonymous (guest) users
-      if (user.providerData.length === 0) continue;
       const role = (user.customClaims as any)?.role;
       if (role !== "admin" && role !== "superadmin") continue;
       result.push({
