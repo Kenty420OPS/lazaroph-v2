@@ -71,7 +71,7 @@ Store Settings and payment methods management.
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds.
 3. Admin Management: race condition on the last-superadmin check is a known limitation, low priority. Requires two superadmins demoting each other within about a second. Recovery: seed script sets the superadmin claim. If ever fixed, prefer a lightweight lock document over a counter.
-4. Admin list filter: Done in fix/mission-10-admin-list-filter (update with merge commit after merge).
+4. Admin list filter: Done in PR #7, merge commit 4316f44.
 5. Seed script (outside repo, lazaroph-seed): resolve firebase-admin via createRequire from the repo root, and merge existing claims instead of overwriting.
 6. Cleanup: remove the redundant `block` class next to `flex` on the QR anchor in PaymentMethodsSettings.tsx.
 7. Turnover to the new owner: create their superadmin account, remove montoyaclark8@gmail.com and other test accounts (Admin Management, then Firebase Auth), review Firebase, Vercel, GitHub, and domain ownership.
