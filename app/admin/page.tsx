@@ -12,6 +12,18 @@ import {
   normalizeStatus,
   getStatusLabel,
 } from "@/lib/order-status";
+import { compressImage } from "@/lib/client-image";
+import {
+  REQUIRED_IMAGE_COUNT,
+  MAX_PRODUCT_IMAGES_TOTAL_BYTES,
+  normalizeImages,
+} from "@/lib/product";
+
+// One slot in the product photo form: either an image already saved on the
+// product, or a newly picked local file with its object-URL preview.
+type PhotoSlot =
+  | { kind: "existing"; url: string }
+  | { kind: "new"; file: File; previewUrl: string };
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -58,8 +70,7 @@ export default function AdminPage() {
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("10");
   const [description, setDescription] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [simulateUploadFailure, setSimulateUploadFailure] = useState(false);
+  const [imageSlots, setImageSlots] = useState<PhotoSlot[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -165,7 +176,16 @@ export default function AdminPage() {
     }
   };
 
+  // Releases the object URL of every newly added (not-yet-saved) photo.
+  const revokeNewSlotPreviews = (slots: PhotoSlot[]) => {
+    slots.forEach((slot) => {
+      if (slot.kind === "new") URL.revokeObjectURL(slot.previewUrl);
+    });
+  };
+
   const resetForm = () => {
+    revokeNewSlotPreviews(imageSlots);
+    setImageSlots([]);
     setEditingId("");
     setName("");
     setBrand("");
@@ -173,14 +193,16 @@ export default function AdminPage() {
     setPrice("");
     setStock("10");
     setDescription("");
-    setImageFile(null);
-    setSimulateUploadFailure(false);
 
     const fileInput = document.getElementById("imageUpload") as HTMLInputElement;
     if (fileInput) fileInput.value = "";
   };
 
   const handleEditSelect = (p: any) => {
+    revokeNewSlotPreviews(imageSlots);
+    setImageSlots(
+      normalizeImages(p).map((img) => ({ kind: "existing" as const, url: img.imageUrl }))
+    );
     setEditingId(p.id);
     setName(p.name || p.title || "");
     setBrand(p.brand || "");
@@ -188,7 +210,68 @@ export default function AdminPage() {
     setPrice(p.price?.toString() || "");
     setStock(p.stock?.toString() || "10");
     setDescription(p.description || "");
-    setImageFile(null);
+  };
+
+  // Compresses and appends picked files, never exceeding the slot limit. A
+  // failed file is reported individually and skipped; the rest still add.
+  const handleAddFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    const remaining = REQUIRED_IMAGE_COUNT - imageSlots.length;
+    if (remaining <= 0) {
+      showNotification(`A product can have at most ${REQUIRED_IMAGE_COUNT} photos`, "error");
+      return;
+    }
+    if (files.length > remaining) {
+      showNotification(
+        `Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added (max ${REQUIRED_IMAGE_COUNT}).`,
+        "error"
+      );
+    }
+
+    const added: PhotoSlot[] = [];
+    for (const file of files.slice(0, remaining)) {
+      try {
+        const compressed = await compressImage(file);
+        added.push({
+          kind: "new",
+          file: compressed,
+          previewUrl: URL.createObjectURL(compressed),
+        });
+      } catch (err: any) {
+        showNotification(`${file.name}: ${err.message}`, "error");
+      }
+    }
+
+    if (added.length > 0) {
+      setImageSlots((prev) => [...prev, ...added].slice(0, REQUIRED_IMAGE_COUNT));
+    }
+  };
+
+  const setAsCover = (index: number) => {
+    setImageSlots((prev) => {
+      if (index <= 0 || index >= prev.length) return prev;
+      const next = [...prev];
+      const [slot] = next.splice(index, 1);
+      next.unshift(slot);
+      return next;
+    });
+  };
+
+  const moveSlot = (index: number, direction: -1 | 1) => {
+    setImageSlots((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const removeSlot = (index: number) => {
+    const slot = imageSlots[index];
+    if (slot && slot.kind === "new") URL.revokeObjectURL(slot.previewUrl);
+    setImageSlots((prev) => prev.filter((_, i) => i !== index));
   };
 
   const getAuthHeader = async () => {
@@ -287,6 +370,18 @@ export default function AdminPage() {
       return;
     }
 
+    // New files are sent in slot order, so their index among the appended
+    // "newImages" entries is what PUT's imageOrder refers to as "new:<k>".
+    const newFiles = imageSlots
+      .filter((slot): slot is Extract<PhotoSlot, { kind: "new" }> => slot.kind === "new")
+      .map((slot) => slot.file);
+
+    const totalBytes = newFiles.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_PRODUCT_IMAGES_TOTAL_BYTES) {
+      showNotification("Upload too large. Use smaller or fewer photos.", "error");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -297,10 +392,17 @@ export default function AdminPage() {
       formData.append("price", price);
       formData.append("stock", stock);
       formData.append("description", description);
-      formData.append("simulateUploadFailure", simulateUploadFailure.toString());
 
-      if (imageFile) {
-        formData.append("image", imageFile);
+      newFiles.forEach((file) => formData.append("newImages", file));
+
+      if (editingId) {
+        let nextNewIndex = 0;
+        const order = imageSlots.map((slot) => {
+          if (slot.kind === "existing") return slot.url;
+          const k = nextNewIndex++;
+          return `new:${k}`;
+        });
+        formData.append("imageOrder", JSON.stringify(order));
       }
 
       const authHeader = await getAuthHeader();
@@ -314,13 +416,23 @@ export default function AdminPage() {
         body: formData,
       });
 
-      const data = await response.json();
-      if (data.success) {
+      // Parse defensively: an oversized/rejected upload may not return JSON.
+      let data: any = null;
+      let isJson = true;
+      try {
+        data = await response.json();
+      } catch {
+        isJson = false;
+      }
+
+      if (response.status === 413 || !isJson) {
+        showNotification("Upload too large. Use smaller or fewer photos.", "error");
+      } else if (data?.success) {
         showNotification(editingId ? "Product updated!" : "Product added!", "success");
         resetForm();
         verifyAndLoad();
       } else {
-        showNotification("Error: " + (data.error || "Unknown error"), "error");
+        showNotification("Error: " + (data?.error || "Unknown error"), "error");
       }
     } catch (err: any) {
       console.error(err);
@@ -509,21 +621,55 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Product Image</label>
-                    <input id="imageUpload" type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-400" />
-                    <p className="text-[9px] text-neutral-500 mt-1">Image will be uploaded to Firebase Storage</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase">Product Photos</label>
+                      <span className="text-[10px] font-bold text-neutral-500">{imageSlots.length} / {REQUIRED_IMAGE_COUNT} photos</span>
+                    </div>
+
+                    {imageSlots.length > 0 && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {imageSlots.map((slot, index) => (
+                          <div key={slot.kind === "existing" ? slot.url : slot.previewUrl} className="bg-black border border-neutral-800 rounded-lg p-2 space-y-2">
+                            <div className="relative aspect-square rounded overflow-hidden bg-neutral-900 flex items-center justify-center">
+                              <img src={slot.kind === "existing" ? slot.url : slot.previewUrl} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                              {index === 0 && (
+                                <span className="absolute top-1 left-1 bg-white text-black text-[9px] font-bold uppercase px-1.5 py-0.5 rounded">Cover</span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1">
+                              {index > 0 && (
+                                <button type="button" onClick={() => setAsCover(index)} className="px-2 py-1 bg-neutral-900 border border-neutral-800 text-[9px] font-bold text-white rounded">Set as cover</button>
+                              )}
+                              <button type="button" onClick={() => moveSlot(index, -1)} disabled={index === 0} className="px-2 py-1 bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-white rounded disabled:opacity-30">←</button>
+                              <button type="button" onClick={() => moveSlot(index, 1)} disabled={index === imageSlots.length - 1} className="px-2 py-1 bg-neutral-900 border border-neutral-800 text-[10px] font-bold text-white rounded disabled:opacity-30">→</button>
+                              <button type="button" onClick={() => removeSlot(index)} className="px-2 py-1 bg-red-950 border border-red-900 text-[9px] font-bold text-red-300 rounded">Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {imageSlots.length < REQUIRED_IMAGE_COUNT && (
+                      <input
+                        id="imageUpload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          e.target.value = "";
+                          await handleAddFiles(files);
+                        }}
+                        className="mt-2 w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-400"
+                      />
+                    )}
+
+                    <p className="text-[9px] text-neutral-500 mt-1">A product needs a price and exactly 4 photos to go live. Otherwise it is saved as a draft.</p>
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Description</label>
                     <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
-                  </div>
-
-                  <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl space-y-1 mt-2">
-                    <label className="flex items-center space-x-2.5 cursor-pointer">
-                      <input type="checkbox" checked={simulateUploadFailure} onChange={(e) => setSimulateUploadFailure(e.target.checked)} className="rounded bg-black border-neutral-700 text-white w-4 h-4" />
-                      <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Simulate Upload Failure</span>
-                    </label>
                   </div>
                 </div>
 

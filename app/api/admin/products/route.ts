@@ -151,7 +151,6 @@ export async function POST(request: Request) {
     let stock = 10;
     let description = "";
     let newFiles: File[] = [];
-    let simulateUploadFailure = false;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -161,7 +160,6 @@ export async function POST(request: Request) {
       price = Number((formData.get("price") as string) || "0") || 0;
       stock = parseInt((formData.get("stock") as string) || "10", 10);
       description = (formData.get("description") as string) || "";
-      simulateUploadFailure = formData.get("simulateUploadFailure") === "true";
 
       // New files arrive as repeated "newImages" entries; the legacy single
       // "image" file is treated as one extra new file appended after them.
@@ -176,24 +174,12 @@ export async function POST(request: Request) {
       price = Number(body.price) || 0;
       stock = Number(body.stock) || 10;
       description = body.description || "";
-      simulateUploadFailure = Boolean(body.simulateUploadFailure);
     }
 
     if (!name.trim()) {
       return NextResponse.json(
         { success: false, error: "Product name is required" },
         { status: 400 }
-      );
-    }
-
-    if (simulateUploadFailure) {
-      console.error("[Admin Products API] Simulated image upload failure requested.");
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Image upload failed (Simulated Upload Failure). Product was NOT saved to Firestore.",
-        },
-        { status: 500 }
       );
     }
 
@@ -303,7 +289,6 @@ export async function PUT(request: Request) {
     let description = "";
     let newFiles: File[] = [];
     let imageOrder: string[] | null = null;
-    let simulateUploadFailure = false;
     let nameSent = false;
     let brandSent = false;
     let categorySent = false;
@@ -326,7 +311,6 @@ export async function PUT(request: Request) {
       price = Number((formData.get("price") as string) || "0") || 0;
       stock = parseInt((formData.get("stock") as string) || "10", 10);
       description = (formData.get("description") as string) || "";
-      simulateUploadFailure = formData.get("simulateUploadFailure") === "true";
 
       newFiles = collectFiles(formData.getAll("newImages"));
       const legacyFile = formData.get("image");
@@ -372,7 +356,6 @@ export async function PUT(request: Request) {
       price = Number(body.price) || 0;
       stock = Number(body.stock) || 10;
       description = body.description || "";
-      simulateUploadFailure = Boolean(body.simulateUploadFailure);
 
       if (body.imageOrder !== undefined) {
         if (!Array.isArray(body.imageOrder) || !body.imageOrder.every((item: unknown) => typeof item === "string")) {
@@ -395,16 +378,6 @@ export async function PUT(request: Request) {
       return NextResponse.json(
         { success: false, error: "Product ID is required for editing" },
         { status: 400 }
-      );
-    }
-
-    if (simulateUploadFailure) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Image upload failed (Simulated Upload Failure). Product update aborted.",
-        },
-        { status: 500 }
       );
     }
 
