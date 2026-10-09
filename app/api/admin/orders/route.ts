@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
+import { isValidStatusForCourier } from "@/lib/order-status";
 
 export async function GET(request: Request) {
   try {
@@ -101,7 +102,26 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: "Status is required" }, { status: 400 });
     }
 
-    await adminDb!.collection("orders").doc(id).update({ 
+    if (typeof status !== "string") {
+      return NextResponse.json({ success: false, error: "Status must be a string" }, { status: 400 });
+    }
+
+    const orderRef = adminDb!.collection("orders").doc(id);
+    const orderSnap = await orderRef.get();
+
+    if (!orderSnap.exists) {
+      return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
+    }
+
+    const courier = orderSnap.data()?.shipping?.courier;
+    if (!isValidStatusForCourier(status, courier)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid status for this shipping method" },
+        { status: 400 }
+      );
+    }
+
+    await orderRef.update({ 
       status, 
       updatedAt: new Date().toISOString() 
     });
