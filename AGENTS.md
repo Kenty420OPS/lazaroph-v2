@@ -65,6 +65,17 @@ Store Settings and payment methods management.
 - Branch: feature/mission-9-store-settings (8 commits, 7c1f9ca..8bfc00a), merged to main via PR #5 (merge commit daaf8b1).
 - Deploy note: storage rules must be deployed to the production Firebase project.
 
+### Mission 9 Part B (shipping) - done
+- Done in PR #13, merge commit e69ba48.
+- Checkout requires an explicit shipping method (no preselection): LBC (fixed fee per region: Luzon 250, Visayas 320, Mindanao 320), Lalamove (Metro Manila only, city dropdown, rider-fee acknowledgment, online fee 0), Pickup (one branch, Marikina, fee 0, pay online first).
+- Shared definitions: lib/shipping.ts, lib/branches.ts (hours and phone have TODO comments pending owner confirmation), lib/order-status.ts.
+- Order statuses: non-Pickup = pending_payment, confirmed, shipped, completed, cancelled. Pickup = pending_payment, confirmed, ready_for_pickup, picked_up, cancelled. Legacy pending_verification is display-only.
+- PATCH /api/admin/orders validates the status against the courier stored on the order. Duplicate app/api/admin/orders/[id]/route.ts was removed.
+- Pickup orders store customer.address as "" and a server-built branch snapshot (branchId, branchName, branchAddress).
+- Known limitation: the Lalamove free-text address is not cross-checked against the selected city.
+- Open: Firestore rules still allow admin client writes to orders (no code path uses it today); consider closing in Mission 10 hardening.
+- Test orders from the Part B preview tests are kept until Part C; delete ALL of them then and re-activate payment methods.
+
 ## Current Mission
 
 ### Mission 10 (backlog)
