@@ -93,5 +93,7 @@ Mission 10 leftovers moved here / to Mission 11
 - #9 Verification (deactivate-then-reload, full snapshot in order doc)
 - #10 Admin mobile layout
 
-Turnover (#7, owner action, not an agent task)
-- Create owner superadmin, confirm login, disable montoyaclark8@gmail.com and test accounts, transfer Firebase, Vercel, GitHub, domain, rotate secrets.
+Turnover (#7) — DONE (Oct 9, 2026)
+- Service account key rotation done: rotate FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL and FIREBASE_PROJECT_ID together from the same JSON; paste without quotes; redeploy Production; test "Add Payment Method"; delete old keys only after Production passes.
+- Ownership decisions: the owner stays the owner of Firebase, Vercel and GitHub; the team uses the website. Janous is not added to the Firebase project.
+- Production re-test passed, the new superadmin can log in, and test accounts are disabled.
