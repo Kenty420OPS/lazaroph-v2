@@ -77,3 +77,21 @@ Store Settings and payment methods management.
 7. Turnover to the new owner: create their superadmin account, remove montoyaclark8@gmail.com and other test accounts (Admin Management, then Firebase Auth), review Firebase, Vercel, GitHub, and domain ownership.
 8. Optional: add Vercel preview domains to Firebase Authorized domains if Google sign-in is needed on previews.
 9. Verify the deactivate-then-reload case on checkout (an inactive method disappears from the dropdown) and confirm the full payment method snapshot (type, account name, account number) on the order doc. Both were skipped during Mission 9 verification.
+
+## Final Cleanup (do LAST, after all missions)
+
+Decision (Oct 7, 2026): stick to the missions; cleanup items are deferred to the end.
+
+Auth / accounts
+- Add "Forgot password?" to the admin login (Firebase sendPasswordResetEmail; only works for real emails).
+- Add superadmin-only "Reset Password" button in Admin Management (server route, Admin SDK updateUser; 401 no token, 403 non-superadmin).
+- Replace fake @lazaroph.com admin emails with real ones where needed (especially the owner/superadmin account), then delete the old fake Auth accounts. Create the replacement and confirm login BEFORE deleting.
+
+Mission 10 leftovers moved here / to Mission 11
+- #5 Seed script (outside repo): optional, skip unless needed
+- #8 Authorized domains (only if Google sign-in is used on preview)
+- #9 Verification (deactivate-then-reload, full snapshot in order doc)
+- #10 Admin mobile layout
+
+Turnover (#7, owner action, not an agent task)
+- Create owner superadmin, confirm login, disable montoyaclark8@gmail.com and test accounts, transfer Firebase, Vercel, GitHub, domain, rotate secrets.
