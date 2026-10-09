@@ -7,6 +7,10 @@ import CopyOrderId from "./CopyOrderId";
 export default function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId") ?? undefined;
+  // Plain-text query params only — rendered as text, never as HTML.
+  const courier = (searchParams.get("courier") ?? "").trim();
+  const branchName = (searchParams.get("branchName") ?? "").trim().slice(0, 100);
+  const isPickup = courier === "Pickup";
 
   return (
     <div className="max-w-md w-full text-center space-y-6">
@@ -41,10 +45,17 @@ export default function SuccessContent() {
           We have securely received your order and proof of payment. Our admin team will manually
           verify your payment within the next 24 hours.
         </p>
-        <p>
-          Once confirmed, we will notify you and process your items for immediate shipping via your
-          chosen courier.
-        </p>
+        {isPickup ? (
+          <p>
+            Once your payment has been confirmed, we will let you know when your order is
+            ready for pickup{branchName ? ` at ${branchName}` : ""}.
+          </p>
+        ) : (
+          <p>
+            Once confirmed, we will notify you and process your items for immediate shipping via your
+            chosen courier.
+          </p>
+        )}
       </div>
 
       <div className="pt-6">

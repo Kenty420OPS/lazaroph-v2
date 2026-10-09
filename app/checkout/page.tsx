@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { getShippingFee } from "@/lib/shipping";
+import { getShippingFee, SHIPPING_METHODS, METRO_MANILA_CITIES, type Courier, type Region } from "@/lib/shipping";
+import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -18,8 +19,10 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
-  const [courier, setCourier] = useState("Lalamove");
-  const [region, setRegion] = useState("Luzon");
+  const [courier, setCourier] = useState<Courier | "">("");
+  const [region, setRegion] = useState<Region | "">("");
+  const [deliveryCity, setDeliveryCity] = useState("");
+  const [riderFeeAck, setRiderFeeAck] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -60,7 +63,10 @@ export default function CheckoutPage() {
 
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) || null;
 
-  const shippingFee = getShippingFee(courier, region);
+  const shippingFee =
+    courier && (courier !== "LBC" || region)
+      ? getShippingFee(courier, region)
+      : 0;
   const finalTotal = cartTotal + shippingFee;
 
   const compressImage = (file: File): Promise<File> => {
@@ -119,8 +125,25 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (cart.length === 0) return;
     
-    if (!name || !contact || !address || !referenceNumber || !paymentImage) {
+    if (!name || !contact || !referenceNumber || !paymentImage) {
       setError("Please fill in all required fields and upload proof of payment.");
+      return;
+    }
+
+    if (!courier) {
+      setError("Please select a shipping method.");
+      return;
+    }
+    if (courier !== "Pickup" && !address) {
+      setError("Please fill in all required fields and upload proof of payment.");
+      return;
+    }
+    if (courier === "LBC" && !region) {
+      setError("Please select a region for LBC.");
+      return;
+    }
+    if (courier === "Lalamove" && (!deliveryCity || !riderFeeAck)) {
+      setError("Please select your delivery city and acknowledge the Lalamove delivery terms.");
       return;
     }
 
@@ -155,10 +178,17 @@ export default function CheckoutPage() {
       const formData = new FormData();
       formData.append("name", name);
       formData.append("contact", contact);
-      formData.append("address", address);
+      formData.append("address", courier === "Pickup" ? "" : address);
       formData.append("courier", courier);
       if (courier === "LBC") {
         formData.append("region", region);
+        formData.append("shippingFee", shippingFee.toString());
+      }
+      if (courier === "Lalamove") {
+        formData.append("city", deliveryCity);
+        formData.append("metroManilaAcknowledged", "true");
+      }
+      if (courier === "Pickup") {
         formData.append("shippingFee", shippingFee.toString());
       }
       formData.append("paymentMethod", paymentMethod);
@@ -212,7 +242,15 @@ export default function CheckoutPage() {
       }
 
       clearCart();
-      router.push(`/checkout/success?orderId=${data.orderId}`);
+      const branchName =
+        courier === "Pickup" ? getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name ?? "" : "";
+      const branchParam =
+        courier === "Pickup" && branchName
+          ? `&branchName=${encodeURIComponent(branchName)}`
+          : "";
+      router.push(
+        `/checkout/success?orderId=${data.orderId}&courier=${encodeURIComponent(courier)}${branchParam}`
+      );
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -262,14 +300,23 @@ export default function CheckoutPage() {
               <span>₱{cartTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
             </div>
             
-            {courier === "LBC" ? (
+            {courier === "Pickup" ? (
+              <div className="flex justify-between text-neutral-300">
+                <span>Store pickup</span>
+                <span>₱0.00</span>
+              </div>
+            ) : courier === "LBC" && region ? (
               <div className="flex justify-between text-neutral-300">
                 <span>Shipping (LBC - {region})</span>
                 <span>₱{shippingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
               </div>
+            ) : courier === "Lalamove" ? (
+              <div className="text-xs text-neutral-500 italic mt-1">
+                {SHIPPING_METHODS.Lalamove.note}
+              </div>
             ) : (
               <div className="text-xs text-neutral-500 italic mt-1">
-                * Delivery fee is separate and will be paid directly to your courier upon delivery.
+                Select a shipping method
               </div>
             )}
             
@@ -294,22 +341,34 @@ export default function CheckoutPage() {
                 <input required type="tel" value={contact} onChange={e => setContact(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery Address *</label>
-              <textarea required value={address} onChange={e => setAddress(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"></textarea>
-            </div>
+            {courier === "Pickup" ? (
+              <div className="bg-neutral-900/60 border border-neutral-800 p-4 rounded-lg text-sm">
+                <p className="font-bold text-white mb-2">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name}</p>
+                <p className="text-neutral-400 whitespace-pre-line">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.address}</p>
+                <p className="text-neutral-400 mt-2">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.hours}</p>
+                <p className="text-neutral-400">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.phone}</p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery Address *</label>
+                <textarea required value={address} onChange={e => setAddress(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"></textarea>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Preferred Courier *</label>
-                <select value={courier} onChange={e => setCourier(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
-                  <option value="Lalamove">Lalamove (Metro Manila / Same Day)</option>
-                  <option value="LBC">LBC (Nationwide)</option>
+                <select value={courier} onChange={e => setCourier(e.target.value as Courier)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                  <option value="" disabled>Select shipping method</option>
+                  {(Object.keys(SHIPPING_METHODS) as Courier[]).map((c) => (
+                    <option key={c} value={c}>{SHIPPING_METHODS[c].label} ({SHIPPING_METHODS[c].description})</option>
+                  ))}
                 </select>
               </div>
               {courier === "LBC" && (
                 <div>
                   <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Select your region *</label>
-                  <select value={region} onChange={e => setRegion(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                  <select value={region} onChange={e => setRegion(e.target.value as Region)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                    <option value="" disabled>Select region</option>
                     <option value="Luzon">Luzon</option>
                     <option value="Visayas">Visayas</option>
                     <option value="Mindanao">Mindanao</option>
@@ -317,6 +376,24 @@ export default function CheckoutPage() {
                 </div>
               )}
             </div>
+            {courier === "Lalamove" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery City (Metro Manila only) *</label>
+                  <select required value={deliveryCity} onChange={e => setDeliveryCity(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                    <option value="" disabled>Select city</option>
+                    {METRO_MANILA_CITIES.map((city) => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-neutral-500 italic mt-1">Outside Metro Manila? Choose LBC.</p>
+                </div>
+                <label className="flex items-start gap-3 text-sm text-neutral-300 cursor-pointer">
+                  <input required type="checkbox" checked={riderFeeAck} onChange={e => setRiderFeeAck(e.target.checked)} className="mt-1 accent-white" />
+                  <span>I understand Lalamove delivery is within Metro Manila only, and I will pay the rider&apos;s delivery fee directly.</span>
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Payment Info */}

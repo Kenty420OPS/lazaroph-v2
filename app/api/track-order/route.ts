@@ -58,6 +58,10 @@ export async function POST(request: Request) {
           courier: orderData?.shipping?.courier,
           shippingFee: orderData?.shipping?.shippingFee,
           region: orderData?.shipping?.region,
+          city: orderData?.shipping?.city,
+          branchId: orderData?.shipping?.branchId,
+          branchName: orderData?.shipping?.branchName,
+          branchAddress: orderData?.shipping?.branchAddress,
         },
         customer: {
           name: orderData?.customer?.name,

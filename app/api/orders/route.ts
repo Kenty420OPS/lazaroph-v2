@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { getShippingFee, VALID_COURIERS, VALID_REGIONS } from "@/lib/shipping";
+import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
+import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 
 const MAX_QTY_PER_ITEM = 99;
 
@@ -14,13 +15,18 @@ export async function POST(request: Request) {
     const address = formData.get("address") as string;
     const courier = formData.get("courier") as string;
     const region = formData.get("region") as string;
+    const city = formData.get("city") as string | null;
+    const metroManilaAcknowledged = formData.get("metroManilaAcknowledged") as string | null;
     const paymentMethodId = formData.get("paymentMethodId") as string;
     const referenceNumber = formData.get("referenceNumber") as string;
     const cartStr = formData.get("cart") as string;
     const paymentImage = formData.get("paymentImage") as File;
     const uid = formData.get("uid") as string | null;
 
-    if (!name || !contact || !address || !referenceNumber || !cartStr || !paymentImage) {
+    if (!name || !contact || !referenceNumber || !cartStr || !paymentImage) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    }
+    if (courier !== "Pickup" && !address) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
@@ -33,6 +39,19 @@ export async function POST(request: Request) {
 
     if (courier === "LBC" && !VALID_REGIONS.includes(region)) {
       return NextResponse.json({ success: false, error: "Invalid or missing region for LBC" }, { status: 400 });
+    }
+
+    if (courier === "Lalamove") {
+      const trimmedCity = typeof city === "string" ? city.trim() : "";
+      if (metroManilaAcknowledged !== "true" || !trimmedCity || !isMetroManila(trimmedCity)) {
+        return NextResponse.json(
+          { success: false, error: "Lalamove delivery is available within Metro Manila only." },
+          { status: 400 }
+        );
+      }
+    }
+    if (courier === "Pickup") {
+      // No region or city required for pickup
     }
 
     let cart: any[] = [];
@@ -151,7 +170,7 @@ export async function POST(request: Request) {
       customer: {
         name,
         contact,
-        address,
+        address: courier === "Pickup" ? "" : address,
       },
       shipping: {
         courier,
@@ -178,6 +197,22 @@ export async function POST(request: Request) {
     
     if (courier === "LBC" && region) {
       orderPayload.shipping.region = region;
+    }
+
+    if (courier === "Lalamove") {
+      orderPayload.shipping.city = typeof city === "string" ? city.trim() : "";
+      orderPayload.shipping.metroManilaAcknowledged = true;
+    }
+
+    if (courier === "Pickup") {
+      const branch = getBranch(DEFAULT_PICKUP_BRANCH_ID);
+      if (branch) {
+        orderPayload.shipping.branchId = branch.id;
+        orderPayload.shipping.branchName = branch.name;
+        orderPayload.shipping.branchAddress = branch.address;
+      } else {
+        orderPayload.shipping.branchId = DEFAULT_PICKUP_BRANCH_ID;
+      }
     }
 
     const docRef = await adminDb.collection("orders").add(orderPayload);
