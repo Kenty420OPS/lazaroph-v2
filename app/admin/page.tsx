@@ -6,6 +6,12 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "f
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
+import {
+  ORDER_STATUSES,
+  getAllowedStatuses,
+  normalizeStatus,
+  getStatusLabel,
+} from "@/lib/order-status";
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -222,15 +228,25 @@ export default function AdminPage() {
         },
         body: JSON.stringify({ status: newStatus })
       });
-      const data = await response.json();
-      if (data.success) {
+      // Parse the body defensively: a non-OK response may not be JSON.
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+      if (response.ok && data?.success) {
         showNotification("Order status updated!", "success");
         verifyAndLoadOrders();
         if (selectedOrder && selectedOrder.id === id) {
           setSelectedOrder({ ...selectedOrder, status: newStatus });
         }
       } else {
-        showNotification("Error updating order: " + data.error, "error");
+        // Never update local state on failure — surface the server error.
+        const serverMessage =
+          (typeof data?.error === "string" && data.error) ||
+          `Server error (HTTP ${response.status})`;
+        showNotification("Error updating order: " + serverMessage, "error");
       }
     } catch (err) {
       console.error(err);
@@ -339,6 +355,25 @@ export default function AdminPage() {
       showNotification("Failed to delete", "error");
     }
   };
+
+  // Status options for the order-detail dropdown, limited to the courier's
+  // allowed statuses. If the order's current status is not allowed for the
+  // courier, keep it visible (disabled) so the select never looks blank.
+  const selectedOrderStatus = selectedOrder ? normalizeStatus(selectedOrder.status) : "";
+  const selectedOrderAllowedStatuses = getAllowedStatuses(selectedOrder?.shipping?.courier);
+  const statusOptions: { value: string; label: string; disabled: boolean }[] =
+    selectedOrderAllowedStatuses.map((s) => ({
+      value: s,
+      label: getStatusLabel(s),
+      disabled: false,
+    }));
+  if (selectedOrderStatus && !statusOptions.some((o) => o.value === selectedOrderStatus)) {
+    statusOptions.push({
+      value: selectedOrderStatus,
+      label: getStatusLabel(selectedOrderStatus),
+      disabled: true,
+    });
+  }
 
   if (authLoading) {
     return <div className="min-h-screen bg-black flex justify-center items-center text-white">Loading...</div>;
@@ -557,11 +592,9 @@ export default function AdminPage() {
                       className="bg-neutral-900 border border-neutral-800 text-white text-xs px-3 py-2 rounded-lg"
                     >
                       <option value="All">All Statuses</option>
-                      <option value="pending_payment">Pending Payment</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
+                      {ORDER_STATUSES.map((s) => (
+                        <option key={s} value={s}>{getStatusLabel(s)}</option>
+                      ))}
                     </select>
                     <button onClick={verifyAndLoadOrders} className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors">
                       Refresh
@@ -601,6 +634,8 @@ export default function AdminPage() {
                           if (s === "pending_payment") badgeColor = "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
                           if (s === "confirmed") badgeColor = "bg-blue-500/10 text-blue-500 border border-blue-500/20";
                           if (s === "shipped") badgeColor = "bg-purple-500/10 text-purple-500 border border-purple-500/20";
+                          if (s === "ready_for_pickup") badgeColor = "bg-orange-500/10 text-orange-500 border border-orange-500/20";
+                          if (s === "picked_up") badgeColor = "bg-teal-500/10 text-teal-500 border border-teal-500/20";
                           if (s === "completed") badgeColor = "bg-green-500/10 text-green-500 border border-green-500/20";
                           if (s === "cancelled") badgeColor = "bg-red-500/10 text-red-500 border border-red-500/20";
 
@@ -612,7 +647,7 @@ export default function AdminPage() {
                               <td className="p-4 font-bold text-white">₱{Number(order.total || 0).toLocaleString("en-PH")}</td>
                               <td className="p-4">
                                 <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${badgeColor}`}>
-                                  {s.replace('_', ' ')}
+                                  {getStatusLabel(normalizeStatus(order.status))}
                                 </span>
                               </td>
                               <td className="p-4">
@@ -642,7 +677,13 @@ export default function AdminPage() {
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Customer Details</h3>
                         <p className="text-white font-semibold">{selectedOrder.customer?.name}</p>
                         <p className="text-neutral-400 text-sm">{selectedOrder.customer?.contact}</p>
-                        <p className="text-neutral-400 text-sm">{selectedOrder.customer?.address}</p>
+                        {selectedOrder.shipping?.courier === "Pickup" ? (
+                          <p className="text-neutral-400 text-sm">
+                            Pickup at: {selectedOrder.shipping?.branchName}, {selectedOrder.shipping?.branchAddress}
+                          </p>
+                        ) : selectedOrder.customer?.address ? (
+                          <p className="text-neutral-400 text-sm">{selectedOrder.customer?.address}</p>
+                        ) : null}
                         {selectedOrder.shipping?.courier === "LBC" && (
                           <p className="text-neutral-400 text-sm mt-1">LBC Region: <span className="text-white">{selectedOrder.shipping?.region}</span></p>
                         )}
@@ -744,15 +785,15 @@ export default function AdminPage() {
                     <div className="bg-black p-4 rounded-xl border border-neutral-800">
                       <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Status</label>
                       <select
-                        value={selectedOrder.status === "pending_verification" ? "pending_payment" : selectedOrder.status}
+                        value={selectedOrderStatus}
                         onChange={(e) => updateOrderStatus(selectedOrder.id, e.target.value)}
                         className="w-full bg-neutral-900 border border-neutral-700 text-white text-sm px-3 py-2 rounded-lg font-bold"
                       >
-                        <option value="pending_payment">Pending Payment</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
+                        {statusOptions.map((o) => (
+                          <option key={o.value} value={o.value} disabled={o.disabled}>
+                            {o.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

@@ -242,7 +242,15 @@ export default function CheckoutPage() {
       }
 
       clearCart();
-      router.push(`/checkout/success?orderId=${data.orderId}`);
+      const branchName =
+        courier === "Pickup" ? getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name ?? "" : "";
+      const branchParam =
+        courier === "Pickup" && branchName
+          ? `&branchName=${encodeURIComponent(branchName)}`
+          : "";
+      router.push(
+        `/checkout/success?orderId=${data.orderId}&courier=${encodeURIComponent(courier)}${branchParam}`
+      );
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {

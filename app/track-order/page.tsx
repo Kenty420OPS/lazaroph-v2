@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { getStatusStep, getTrackSteps } from "@/lib/order-status";
 
 function TrackOrderContent() {
   const searchParams = useSearchParams();
@@ -40,18 +41,9 @@ function TrackOrderContent() {
     }
   };
 
-  const getStatusStep = (status: string) => {
-    const s = status === "pending_verification" ? "pending_payment" : status;
-    switch(s) {
-      case "pending_payment": return 1;
-      case "confirmed": return 2;
-      case "shipped": return 3;
-      case "completed": return 4;
-      default: return 0;
-    }
-  };
-
-  const currentStep = orderData ? getStatusStep(orderData.status) : 0;
+  const courier = orderData?.shipping?.courier;
+  const trackSteps = getTrackSteps(courier);
+  const currentStep = orderData ? getStatusStep(courier, orderData.status) : 0;
   const isCancelled = orderData?.status === "cancelled";
 
   return (
@@ -120,29 +112,27 @@ function TrackOrderContent() {
               ) : (
                 <div className="relative flex flex-col sm:grid sm:grid-cols-4 items-start gap-6 sm:gap-0 mt-8 mb-4">
                   <div className="hidden sm:block absolute top-4 h-1 bg-neutral-800 -translate-y-1/2 z-0" style={{ left: '12.5%', right: '12.5%' }}></div>
-                  <div className="hidden sm:block absolute top-4 h-1 bg-white -translate-y-1/2 z-0 transition-all duration-500" style={{ left: '12.5%', width: `${(Math.max(0, currentStep - 1) / 3) * 75}%` }}></div>
+                  <div className="hidden sm:block absolute top-4 h-1 bg-white -translate-y-1/2 z-0 transition-all duration-500" style={{ left: '12.5%', width: `${(Math.max(0, currentStep - 1) / Math.max(1, trackSteps.length - 1)) * 75}%` }}></div>
 
-                  {[
-                    { step: 1, label: "Pending Payment" },
-                    { step: 2, label: "Confirmed" },
-                    { step: 3, label: "Shipped" },
-                    { step: 4, label: "Completed" },
-                  ].map((s) => (
-                    <div key={s.step} className="relative z-10 flex sm:flex-col items-center gap-4 sm:gap-2 text-center w-full">
+                  {trackSteps.map((s, idx) => {
+                    const step = idx + 1;
+                    return (
+                    <div key={s.status} className="relative z-10 flex sm:flex-col items-center gap-4 sm:gap-2 text-center w-full">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
-                        currentStep >= s.step 
+                        currentStep >= step 
                           ? "bg-white border-white text-black" 
                           : "bg-black border-neutral-700 text-neutral-500"
                       }`}>
-                        {currentStep > s.step ? "✓" : s.step}
+                        {currentStep > step ? "✓" : step}
                       </div>
                       <span className={`text-xs font-bold uppercase tracking-wider ${
-                        currentStep >= s.step ? "text-white" : "text-neutral-500"
+                        currentStep >= step ? "text-white" : "text-neutral-500"
                       }`}>
                         {s.label}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -174,10 +164,14 @@ function TrackOrderContent() {
               </div>
 
               <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800">
-                <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-800 pb-2">Delivery Details</h3>
+                <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-800 pb-2">{courier === "Pickup" ? "Pickup Details" : "Delivery Details"}</h3>
                 <div className="space-y-2 text-sm text-neutral-300">
                   <p><span className="text-neutral-500">Name:</span> {orderData.customer?.name}</p>
-                  <p><span className="text-neutral-500">Address:</span> {orderData.customer?.address}</p>
+                  {courier === "Pickup" ? (
+                    <p><span className="text-neutral-500">Pickup at:</span> {orderData.shipping?.branchName}, {orderData.shipping?.branchAddress}</p>
+                  ) : orderData.customer?.address ? (
+                    <p><span className="text-neutral-500">Address:</span> {orderData.customer?.address}</p>
+                  ) : null}
                   <p><span className="text-neutral-500">Courier:</span> {orderData.shipping?.courier}</p>
                   <p><span className="text-neutral-500">Payment:</span> {orderData.payment?.method} (Ref: {orderData.payment?.referenceNumber})</p>
                 </div>
