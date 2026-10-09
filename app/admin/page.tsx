@@ -646,6 +646,12 @@ export default function AdminPage() {
                         {selectedOrder.shipping?.courier === "LBC" && (
                           <p className="text-neutral-400 text-sm mt-1">LBC Region: <span className="text-white">{selectedOrder.shipping?.region}</span></p>
                         )}
+                        {selectedOrder.shipping?.courier === "Lalamove" && (
+                          <>
+                            <p className="text-neutral-400 text-sm mt-1">City: <span className="text-white">{selectedOrder.shipping?.city}</span></p>
+                            <p className="text-neutral-400 text-sm mt-1">Rider fee acknowledged: <span className="text-white">{selectedOrder.shipping?.metroManilaAcknowledged ? "Yes" : "No"}</span></p>
+                          </>
+                        )}
                       </div>
                       <div className="text-left md:text-right">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Info</h3>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { getShippingFee, VALID_COURIERS, VALID_REGIONS } from "@/lib/shipping";
+import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 
 const MAX_QTY_PER_ITEM = 99;
 
@@ -14,6 +14,8 @@ export async function POST(request: Request) {
     const address = formData.get("address") as string;
     const courier = formData.get("courier") as string;
     const region = formData.get("region") as string;
+    const city = formData.get("city") as string | null;
+    const metroManilaAcknowledged = formData.get("metroManilaAcknowledged") as string | null;
     const paymentMethodId = formData.get("paymentMethodId") as string;
     const referenceNumber = formData.get("referenceNumber") as string;
     const cartStr = formData.get("cart") as string;
@@ -33,6 +35,16 @@ export async function POST(request: Request) {
 
     if (courier === "LBC" && !VALID_REGIONS.includes(region)) {
       return NextResponse.json({ success: false, error: "Invalid or missing region for LBC" }, { status: 400 });
+    }
+
+    if (courier === "Lalamove") {
+      const trimmedCity = typeof city === "string" ? city.trim() : "";
+      if (metroManilaAcknowledged !== "true" || !trimmedCity || !isMetroManila(trimmedCity)) {
+        return NextResponse.json(
+          { success: false, error: "Lalamove delivery is available within Metro Manila only." },
+          { status: 400 }
+        );
+      }
     }
 
     let cart: any[] = [];
@@ -178,6 +190,11 @@ export async function POST(request: Request) {
     
     if (courier === "LBC" && region) {
       orderPayload.shipping.region = region;
+    }
+
+    if (courier === "Lalamove") {
+      orderPayload.shipping.city = typeof city === "string" ? city.trim() : "";
+      orderPayload.shipping.metroManilaAcknowledged = true;
     }
 
     const docRef = await adminDb.collection("orders").add(orderPayload);

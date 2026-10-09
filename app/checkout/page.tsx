@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { getShippingFee, SHIPPING_METHODS, type Courier, type Region } from "@/lib/shipping";
+import { getShippingFee, SHIPPING_METHODS, METRO_MANILA_CITIES, type Courier, type Region } from "@/lib/shipping";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -20,6 +20,8 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState("");
   const [courier, setCourier] = useState<Courier | "">("");
   const [region, setRegion] = useState<Region | "">("");
+  const [deliveryCity, setDeliveryCity] = useState("");
+  const [riderFeeAck, setRiderFeeAck] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -135,6 +137,10 @@ export default function CheckoutPage() {
       setError("Please select a region for LBC.");
       return;
     }
+    if (courier === "Lalamove" && (!deliveryCity || !riderFeeAck)) {
+      setError("Please select your delivery city and acknowledge the Lalamove delivery terms.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -172,6 +178,10 @@ export default function CheckoutPage() {
       if (courier === "LBC") {
         formData.append("region", region);
         formData.append("shippingFee", shippingFee.toString());
+      }
+      if (courier === "Lalamove") {
+        formData.append("city", deliveryCity);
+        formData.append("metroManilaAcknowledged", "true");
       }
       formData.append("paymentMethod", paymentMethod);
       formData.append("paymentMethodId", paymentMethodId);
@@ -336,6 +346,24 @@ export default function CheckoutPage() {
                 </div>
               )}
             </div>
+            {courier === "Lalamove" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery City (Metro Manila only) *</label>
+                  <select required value={deliveryCity} onChange={e => setDeliveryCity(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                    <option value="" disabled>Select city</option>
+                    {METRO_MANILA_CITIES.map((city) => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-neutral-500 italic mt-1">Outside Metro Manila? Choose LBC.</p>
+                </div>
+                <label className="flex items-start gap-3 text-sm text-neutral-300 cursor-pointer">
+                  <input required type="checkbox" checked={riderFeeAck} onChange={e => setRiderFeeAck(e.target.checked)} className="mt-1 accent-white" />
+                  <span>I understand Lalamove delivery is within Metro Manila only, and I will pay the rider&apos;s delivery fee directly.</span>
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Payment Info */}
