@@ -6,14 +6,17 @@ export const LBC_REGION_FEES: Record<string, number> = {
   Mindanao: 320,
 };
 
-export const VALID_COURIERS = ["Lalamove", "LBC"] as const;
+export const VALID_COURIERS = ["Lalamove", "LBC", "Pickup"] as const;
 export const VALID_REGIONS = Object.keys(LBC_REGION_FEES);
 
 export function getShippingFee(courier: string, region?: string | null): number {
+  if (courier === "Pickup") {
+    return 0;
+  }
   if (courier === "LBC") {
     return LBC_REGION_FEES[region || ""] ?? 0;
   }
-  // Lalamove and any other courier: delivery fee paid directly to courier.
+  // Lalamove and other couriers: delivery fee paid directly to courier.
   return 0;
 }
 
@@ -22,7 +25,7 @@ export function getShippingFee(courier: string, region?: string | null): number 
 export type Courier = (typeof VALID_COURIERS)[number];
 export type Region = "Luzon" | "Visayas" | "Mindanao";
 
-export type ShippingFeeMode = "region" | "paid_to_rider";
+export type ShippingFeeMode = "region" | "paid_to_rider" | "free";
 
 export interface ShippingMethodConfig {
   label: string;
@@ -46,6 +49,13 @@ export const SHIPPING_METHODS: Record<Courier, ShippingMethodConfig> = {
     requiresAddress: true,
     feeMode: "paid_to_rider",
     note: "Delivery fee is paid directly to the rider and is not part of the online total.",
+  },
+  Pickup: {
+    label: "Store Pickup",
+    description: "Pickup at store location",
+    requiresAddress: false,
+    feeMode: "free",
+    note: "Free pickup at our store.",
   },
 };
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
 import { getShippingFee, SHIPPING_METHODS, METRO_MANILA_CITIES, type Courier, type Region } from "@/lib/shipping";
+import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -124,13 +125,17 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (cart.length === 0) return;
     
-    if (!name || !contact || !address || !referenceNumber || !paymentImage) {
+    if (!name || !contact || !referenceNumber || !paymentImage) {
       setError("Please fill in all required fields and upload proof of payment.");
       return;
     }
 
     if (!courier) {
       setError("Please select a shipping method.");
+      return;
+    }
+    if (courier !== "Pickup" && !address) {
+      setError("Please fill in all required fields and upload proof of payment.");
       return;
     }
     if (courier === "LBC" && !region) {
@@ -173,7 +178,7 @@ export default function CheckoutPage() {
       const formData = new FormData();
       formData.append("name", name);
       formData.append("contact", contact);
-      formData.append("address", address);
+      formData.append("address", courier === "Pickup" ? "" : address);
       formData.append("courier", courier);
       if (courier === "LBC") {
         formData.append("region", region);
@@ -182,6 +187,9 @@ export default function CheckoutPage() {
       if (courier === "Lalamove") {
         formData.append("city", deliveryCity);
         formData.append("metroManilaAcknowledged", "true");
+      }
+      if (courier === "Pickup") {
+        formData.append("shippingFee", shippingFee.toString());
       }
       formData.append("paymentMethod", paymentMethod);
       formData.append("paymentMethodId", paymentMethodId);
@@ -284,7 +292,12 @@ export default function CheckoutPage() {
               <span>₱{cartTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
             </div>
             
-            {courier === "LBC" && region ? (
+            {courier === "Pickup" ? (
+              <div className="flex justify-between text-neutral-300">
+                <span>Store pickup</span>
+                <span>₱0.00</span>
+              </div>
+            ) : courier === "LBC" && region ? (
               <div className="flex justify-between text-neutral-300">
                 <span>Shipping (LBC - {region})</span>
                 <span>₱{shippingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
@@ -320,10 +333,19 @@ export default function CheckoutPage() {
                 <input required type="tel" value={contact} onChange={e => setContact(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery Address *</label>
-              <textarea required value={address} onChange={e => setAddress(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"></textarea>
-            </div>
+            {courier === "Pickup" ? (
+              <div className="bg-neutral-900/60 border border-neutral-800 p-4 rounded-lg text-sm">
+                <p className="font-bold text-white mb-2">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name}</p>
+                <p className="text-neutral-400 whitespace-pre-line">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.address}</p>
+                <p className="text-neutral-400 mt-2">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.hours}</p>
+                <p className="text-neutral-400">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.phone}</p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery Address *</label>
+                <textarea required value={address} onChange={e => setAddress(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"></textarea>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Preferred Courier *</label>
