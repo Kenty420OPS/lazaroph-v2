@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { getShippingFee } from "@/lib/shipping";
+import { getShippingFee, SHIPPING_METHODS, type Courier, type Region } from "@/lib/shipping";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -18,8 +18,8 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
-  const [courier, setCourier] = useState("Lalamove");
-  const [region, setRegion] = useState("Luzon");
+  const [courier, setCourier] = useState<Courier | "">("");
+  const [region, setRegion] = useState<Region | "">("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -60,7 +60,10 @@ export default function CheckoutPage() {
 
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) || null;
 
-  const shippingFee = getShippingFee(courier, region);
+  const shippingFee =
+    courier && (courier !== "LBC" || region)
+      ? getShippingFee(courier, region)
+      : 0;
   const finalTotal = cartTotal + shippingFee;
 
   const compressImage = (file: File): Promise<File> => {
@@ -121,6 +124,15 @@ export default function CheckoutPage() {
     
     if (!name || !contact || !address || !referenceNumber || !paymentImage) {
       setError("Please fill in all required fields and upload proof of payment.");
+      return;
+    }
+
+    if (!courier) {
+      setError("Please select a shipping method.");
+      return;
+    }
+    if (courier === "LBC" && !region) {
+      setError("Please select a region for LBC.");
       return;
     }
 
@@ -262,14 +274,18 @@ export default function CheckoutPage() {
               <span>₱{cartTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
             </div>
             
-            {courier === "LBC" ? (
+            {courier === "LBC" && region ? (
               <div className="flex justify-between text-neutral-300">
                 <span>Shipping (LBC - {region})</span>
                 <span>₱{shippingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
               </div>
+            ) : courier === "Lalamove" ? (
+              <div className="text-xs text-neutral-500 italic mt-1">
+                {SHIPPING_METHODS.Lalamove.note}
+              </div>
             ) : (
               <div className="text-xs text-neutral-500 italic mt-1">
-                * Delivery fee is separate and will be paid directly to your courier upon delivery.
+                Select a shipping method
               </div>
             )}
             
@@ -301,15 +317,18 @@ export default function CheckoutPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Preferred Courier *</label>
-                <select value={courier} onChange={e => setCourier(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
-                  <option value="Lalamove">Lalamove (Metro Manila / Same Day)</option>
-                  <option value="LBC">LBC (Nationwide)</option>
+                <select value={courier} onChange={e => setCourier(e.target.value as Courier)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                  <option value="" disabled>Select shipping method</option>
+                  {(Object.keys(SHIPPING_METHODS) as Courier[]).map((c) => (
+                    <option key={c} value={c}>{SHIPPING_METHODS[c].label} ({SHIPPING_METHODS[c].description})</option>
+                  ))}
                 </select>
               </div>
               {courier === "LBC" && (
                 <div>
                   <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Select your region *</label>
-                  <select value={region} onChange={e => setRegion(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                  <select value={region} onChange={e => setRegion(e.target.value as Region)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
+                    <option value="" disabled>Select region</option>
                     <option value="Luzon">Luzon</option>
                     <option value="Visayas">Visayas</option>
                     <option value="Mindanao">Mindanao</option>
