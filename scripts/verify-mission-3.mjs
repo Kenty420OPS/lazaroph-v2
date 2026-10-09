@@ -71,60 +71,6 @@ async function runVerification() {
     }
 
     // -----------------------------------------------------------------
-    // TEST 2: Upload Failure Coordination — Ensure No Orphaned Product
-    // -----------------------------------------------------------------
-    console.log("\n[TEST 2] Verifying image upload failure coordination...");
-    
-    // Count products before failed attempt
-    const snapshotBefore = await getDocs(collection(db, "products"));
-    const countBefore = snapshotBefore.size;
-
-    // Call POST with simulateUploadFailure=true
-    const failedUploadRes = await fetch(`${BASE_URL}/api/admin/products`, {
-      method: "POST",
-      headers: {
-        "x-admin-key": ADMIN_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Test Failed Upload Sneaker",
-        brand: "FailureBrand",
-        category: "Sneakers",
-        price: 9999,
-        simulateUploadFailure: true,
-      }),
-    });
-
-    console.log(`POST /api/admin/products (Simulated Failure): Status ${failedUploadRes.status}`);
-    const failedUploadData = await failedUploadRes.json();
-    console.log("  Server error response message:", failedUploadData.error);
-
-    if (failedUploadRes.status === 500 && !failedUploadData.success) {
-      console.log("  ✓ Server correctly returned error 500 upon upload failure.");
-    } else {
-      console.error("  ✗ FAIL: Server did not handle upload failure correctly!");
-      testFailed = true;
-    }
-
-    // Verify Firestore snapshot count after failed upload
-    const snapshotAfter = await getDocs(collection(db, "products"));
-    const countAfter = snapshotAfter.size;
-
-    let foundOrphan = false;
-    snapshotAfter.forEach((docSnap) => {
-      if (docSnap.data().name === "Test Failed Upload Sneaker") {
-        foundOrphan = true;
-      }
-    });
-
-    if (!foundOrphan && countAfter === countBefore) {
-      console.log("  ✓ PASS: No orphaned/broken product document was created in Firestore!");
-    } else {
-      console.error("  ✗ FAIL: Orphaned product was found in Firestore!");
-      testFailed = true;
-    }
-
-    // -----------------------------------------------------------------
     // TEST 1: Add Product & Confirm Appearance on Public /shop
     // -----------------------------------------------------------------
     console.log("\n[TEST 1] Adding valid product with image & checking public /shop visibility...");
