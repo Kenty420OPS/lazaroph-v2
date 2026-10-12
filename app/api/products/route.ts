@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { isProductActive, normalizeImages } from "@/lib/product";
 
 export const revalidate = 60; // ISR: revalidate product list every 60 s
 
@@ -20,6 +21,9 @@ export async function GET(request: Request) {
         ...data,
       });
     });
+
+    // Drop drafts / hidden / deleted products from the public catalog.
+    products = products.filter((p) => isProductActive(p));
 
     // Category filter
     if (categoryParam && categoryParam !== "All") {
@@ -44,7 +48,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       count: products.length,
-      products,
+      products: products.map((p) => ({ ...p, images: normalizeImages(p) })),
     });
   } catch (error: any) {
     console.error("GET /api/products error:", error);

@@ -164,7 +164,11 @@ export default function AdminPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/products");
+      const authHeader = await getAuthHeader();
+      if (!authHeader) return;
+      const response = await fetch("/api/admin/products", {
+        headers: { "Authorization": authHeader },
+      });
       const data = await response.json();
       if (data.success) {
         setProducts(data.products || []);
@@ -711,6 +715,21 @@ export default function AdminPage() {
                         <div>
                           <h3 className="text-xs font-bold text-white">{p.name || p.title}</h3>
                           <p className="text-xs font-bold text-neutral-300 mt-1">₱{Number(p.price || 0).toLocaleString("en-PH")}</p>
+                          {p.isActive ? (
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-green-500/10 text-green-500 border border-green-500/20">Live</span>
+                          ) : (
+                            <>
+                              <span
+                                title={`needs: ${(p.missing || []).join(", ")}`}
+                                className="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                              >
+                                Draft
+                              </span>
+                              {(p.missing || []).length > 0 && (
+                                <p className="text-[9px] text-yellow-500 mt-1">needs: {(p.missing || []).join(", ")}</p>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex space-x-2">

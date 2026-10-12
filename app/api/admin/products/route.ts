@@ -8,6 +8,8 @@ import {
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
   normalizeImages,
   isPublishable,
+  isProductActive,
+  getMissingForPublish,
   type ProductImage,
 } from "@/lib/product";
 
@@ -130,6 +132,51 @@ function productStoragePathsForCleanup(urls: string[]): string[] {
     paths.push(parsed.path);
   }
   return paths;
+}
+
+// GET /api/admin/products - List all products for the admin table (Admin authorized only)
+export async function GET(request: Request) {
+  try {
+    const auth = await verifyAdminRequest(request);
+    if (!auth.isAdmin) {
+      return NextResponse.json(
+        { success: false, error: auth.error || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const snapshot = await adminDb.collection("products").get();
+    const products = snapshot.docs.map((doc) => {
+      const data = (doc.data() as any) || {};
+      return {
+        id: doc.id,
+        ...data,
+        images: normalizeImages(data),
+        isActive: isProductActive(data),
+        missing: getMissingForPublish(data),
+      };
+    });
+
+    // Newest first when createdAt is present; docs without it keep their order.
+    products.sort((a: any, b: any) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : NaN;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : NaN;
+      const aValid = !Number.isNaN(aTime);
+      const bValid = !Number.isNaN(bTime);
+      if (!aValid && !bValid) return 0;
+      if (!aValid) return 1;
+      if (!bValid) return -1;
+      return bTime - aTime;
+    });
+
+    return NextResponse.json({ success: true, products });
+  } catch (error: any) {
+    console.error("GET /api/admin/products error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to load products" },
+      { status: 500 }
+    );
+  }
 }
 
 // POST /api/admin/products - Add a new product (Admin authorized only)

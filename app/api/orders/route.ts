@@ -3,6 +3,7 @@ import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
+import { isProductActive } from "@/lib/product";
 
 const MAX_QTY_PER_ITEM = 99;
 
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
       }
 
       const product: any = snap.data();
-      if (product.deleted === true || product.hidden === true || product.isActive === false) {
+      if (!isProductActive(product)) {
         return NextResponse.json({ success: false, error: `Product is not available: ${id}` }, { status: 400 });
       }
       if (typeof product.stock === "number" && product.stock < 1) {

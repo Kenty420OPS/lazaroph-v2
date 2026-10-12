@@ -62,6 +62,31 @@ export function isPublishable(p: {
   return { ok: missing.length === 0, missing }
 }
 
+// True when a product may be shown to customers: it must not be explicitly
+// deleted/hidden/deactivated, and it must pass the publishable check on the
+// same fields isPublishable uses (name, category, price, images).
+export function isProductActive(doc: any): boolean {
+  if (doc?.deleted === true || doc?.hidden === true || doc?.isActive === false) return false
+
+  return isPublishable({
+    name: doc?.name ?? doc?.title,
+    category: doc?.category,
+    price: Number(doc?.price),
+    images: normalizeImages(doc),
+  }).ok
+}
+
+// The publishable fields a product doc is missing (same mapping as
+// isProductActive): "name", "category", "price" and/or "images".
+export function getMissingForPublish(doc: any): string[] {
+  return isPublishable({
+    name: doc?.name ?? doc?.title,
+    category: doc?.category,
+    price: Number(doc?.price),
+    images: normalizeImages(doc),
+  }).missing
+}
+
 // The price actually shown/charged: the discount price when it is a finite
 // number > 0 and less than a valid price; otherwise the base price when it is
 // a finite number > 0; otherwise 0.
