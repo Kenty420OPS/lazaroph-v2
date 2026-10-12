@@ -6,6 +6,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "f
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
+import BrandsSettings from "@/components/BrandsSettings";
 import {
   ORDER_STATUSES,
   getAllowedStatuses,
@@ -51,7 +52,7 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands">("products");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -592,6 +593,12 @@ export default function AdminPage() {
                 Store Settings
               </button>
             )}
+            <button
+              onClick={() => setActiveTab("brands")}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "brands" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+            >
+              Brands
+            </button>
           </div>
           <span className="text-xs text-neutral-400">{user.email}</span>
           <button onClick={handleLogout} className="bg-neutral-900 border border-neutral-700 px-4 py-2 text-xs font-bold rounded-lg hover:bg-neutral-800 transition-colors">Logout</button>
@@ -1058,6 +1065,10 @@ export default function AdminPage() {
 
         {activeTab === "settings" && userRole === 'superadmin' && (
           <PaymentMethodsSettings />
+        )}
+
+        {activeTab === "brands" && (
+          <BrandsSettings />
         )}
 
         {activeTab === "chats" && (
