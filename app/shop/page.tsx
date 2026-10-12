@@ -240,23 +240,25 @@ export default function ShopPage() {
                 >
                   {/* Product Image Container */}
                   <div className="relative w-full h-52 bg-black flex items-center justify-center overflow-hidden">
-                    {displayImage && displayImage.startsWith("http") ? (
-                      <img
-                        src={displayImage}
-                        alt={product.name || product.title || "Product"}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-neutral-600">
-                        <svg className="w-12 h-12 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-[10px] text-neutral-500">LAZAROPH Genuine Product</span>
-                      </div>
-                    )}
+                    <Link href={`/shop/${product.id}`} className="w-full h-full flex items-center justify-center">
+                      {displayImage && displayImage.startsWith("http") ? (
+                        <img
+                          src={displayImage}
+                          alt={product.name || product.title || "Product"}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-neutral-600">
+                          <svg className="w-12 h-12 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[10px] text-neutral-500">LAZAROPH Genuine Product</span>
+                        </div>
+                      )}
+                    </Link>
 
                     {/* Category Badge */}
                     <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md border border-neutral-700 text-neutral-300 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
@@ -272,9 +274,11 @@ export default function ShopPage() {
                           {product.brand}
                         </p>
                       )}
-                      <h3 className="text-sm font-semibold text-white group-hover:text-neutral-300 transition-colors line-clamp-2">
-                        {product.name || product.title || "Untitled Product"}
-                      </h3>
+                      <Link href={`/shop/${product.id}`} className="block">
+                        <h3 className="text-sm font-semibold text-white group-hover:text-neutral-300 transition-colors line-clamp-2">
+                          {product.name || product.title || "Untitled Product"}
+                        </h3>
+                      </Link>
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-neutral-800 flex items-center justify-between">
