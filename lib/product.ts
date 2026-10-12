@@ -130,3 +130,45 @@ export function generateSkuCandidate(): string {
   }
   return sku
 }
+
+// Target audience options accepted by the admin product form.
+export const PRODUCT_GENDERS = ["Men", "Women", "Kids", "Unisex"] as const
+
+// Limits for the free-text product fields.
+export const MAX_KEY_FEATURES = 10
+export const MAX_KEY_FEATURE_LENGTH = 120
+export const MAX_LONG_TEXT_LENGTH = 1000
+
+// Normalizes key features from a form value. Accepts either a string with one
+// feature per line or an array of strings. Trims each entry, drops empty lines,
+// cuts each item to MAX_KEY_FEATURE_LENGTH and keeps at most MAX_KEY_FEATURES.
+export function parseKeyFeatures(input: unknown): string[] {
+  let items: unknown[]
+  if (typeof input === "string") {
+    items = input.split(/\r?\n/)
+  } else if (Array.isArray(input)) {
+    items = input
+  } else {
+    return []
+  }
+
+  return items
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item !== "")
+    .map((item) => item.slice(0, MAX_KEY_FEATURE_LENGTH))
+    .slice(0, MAX_KEY_FEATURES)
+}
+
+// Trims a string field and cuts it to `max` characters; anything that is not a
+// string becomes "".
+export function cleanText(input: unknown, max: number): string {
+  if (typeof input !== "string") return ""
+  return input.trim().slice(0, max)
+}
+
+// The price actually charged for a product doc: the discount price when it is
+// valid, otherwise the base price, otherwise 0 (same rule as getEffectivePrice).
+export function getChargedPrice(doc: any): number {
+  return getEffectivePrice(Number(doc?.price), doc?.discountPrice)
+}

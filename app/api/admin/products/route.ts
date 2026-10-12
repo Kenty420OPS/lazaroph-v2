@@ -6,14 +6,34 @@ import {
   REQUIRED_IMAGE_COUNT,
   MAX_PRODUCT_IMAGE_BYTES,
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
+  MAX_LONG_TEXT_LENGTH,
+  PRODUCT_GENDERS,
   normalizeImages,
   isPublishable,
   isProductActive,
   getMissingForPublish,
+  parseKeyFeatures,
+  cleanText,
+  generateSkuCandidate,
   type ProductImage,
 } from "@/lib/product";
 
 type ValidatedUpload = { buffer: Buffer; contentType: string; ext: string };
+
+// Finds a SKU that is not already used by another product. Tries up to 8
+// random candidates; returns null when every attempt collides.
+async function generateUniqueSku(): Promise<string | null> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const candidate = generateSkuCandidate();
+    const existing = await adminDb
+      .collection("products")
+      .where("sku", "==", candidate)
+      .limit(1)
+      .get();
+    if (existing.empty) return candidate;
+  }
+  return null;
+}
 
 // Duck-typed check for a usable (non-empty) multipart file entry.
 function isUsableFile(value: unknown): value is File {
@@ -197,6 +217,12 @@ export async function POST(request: Request) {
     let price = 0;
     let stock = 10;
     let description = "";
+    let discountPriceRaw: unknown = undefined;
+    let subcategory = "";
+    let gender = "";
+    let keyFeaturesRaw: unknown = undefined;
+    let materials = "";
+    let careInstructions = "";
     let newFiles: File[] = [];
 
     if (contentType.includes("multipart/form-data")) {
@@ -207,6 +233,12 @@ export async function POST(request: Request) {
       price = Number((formData.get("price") as string) || "0") || 0;
       stock = parseInt((formData.get("stock") as string) || "10", 10);
       description = (formData.get("description") as string) || "";
+      discountPriceRaw = formData.get("discountPrice");
+      subcategory = (formData.get("subcategory") as string) || "";
+      gender = (formData.get("gender") as string) || "";
+      keyFeaturesRaw = formData.get("keyFeatures");
+      materials = (formData.get("materials") as string) || "";
+      careInstructions = (formData.get("careInstructions") as string) || "";
 
       // New files arrive as repeated "newImages" entries; the legacy single
       // "image" file is treated as one extra new file appended after them.
@@ -221,6 +253,12 @@ export async function POST(request: Request) {
       price = Number(body.price) || 0;
       stock = Number(body.stock) || 10;
       description = body.description || "";
+      discountPriceRaw = body.discountPrice;
+      subcategory = body.subcategory || "";
+      gender = body.gender || "";
+      keyFeaturesRaw = body.keyFeatures;
+      materials = body.materials || "";
+      careInstructions = body.careInstructions || "";
     }
 
     if (!name.trim()) {
@@ -243,6 +281,30 @@ export async function POST(request: Request) {
     const mergedPrice = Number(price);
     const mergedStock = Number(stock);
     const mergedDescription = description.trim();
+    const mergedSubcategory = cleanText(subcategory, 60);
+    const mergedGender = cleanText(gender, 60);
+    if (mergedGender !== "" && !PRODUCT_GENDERS.includes(mergedGender as any)) {
+      return NextResponse.json({ success: false, error: "Invalid gender" }, { status: 400 });
+    }
+    const mergedKeyFeatures = parseKeyFeatures(keyFeaturesRaw);
+    const mergedMaterials = cleanText(materials, MAX_LONG_TEXT_LENGTH);
+    const mergedCareInstructions = cleanText(careInstructions, MAX_LONG_TEXT_LENGTH);
+
+    // Empty/missing means no discount; otherwise it must be a finite number
+    // greater than 0 and strictly lower than the merged base price.
+    const discountRawTrimmed =
+      typeof discountPriceRaw === "string" ? discountPriceRaw.trim() : discountPriceRaw;
+    let mergedDiscountPrice: number | null = null;
+    if (discountRawTrimmed !== undefined && discountRawTrimmed !== null && discountRawTrimmed !== "") {
+      const parsedDiscount = Number(discountRawTrimmed);
+      if (!Number.isFinite(parsedDiscount) || parsedDiscount <= 0 || !(parsedDiscount < mergedPrice)) {
+        return NextResponse.json(
+          { success: false, error: "Discount price must be lower than the price" },
+          { status: 400 }
+        );
+      }
+      mergedDiscountPrice = parsedDiscount;
+    }
 
     const validation = await validateNewFiles(newFiles);
     if (!validation.ok) {
@@ -262,6 +324,12 @@ export async function POST(request: Request) {
         finalUrls.push(uploaded.url);
       }
 
+      // Unique SKU; a throw here rolls back the uploads via the catch below.
+      const sku = await generateUniqueSku();
+      if (!sku) {
+        throw new Error("Failed to generate a unique SKU after 8 attempts");
+      }
+
       const finalImages = buildProductImages(finalUrls);
       const coverUrl = finalImages[0]?.imageUrl ?? "";
       const isActive = isPublishable({
@@ -277,9 +345,16 @@ export async function POST(request: Request) {
         title: mergedName,
         brand: mergedBrand,
         category: mergedCategory,
+        subcategory: mergedSubcategory,
+        gender: mergedGender,
         price: mergedPrice,
+        discountPrice: mergedDiscountPrice,
+        sku,
         stock: mergedStock,
         description: mergedDescription,
+        keyFeatures: mergedKeyFeatures,
+        materials: mergedMaterials,
+        careInstructions: mergedCareInstructions,
         images: finalImages,
         imageUrl: coverUrl,
         mainImageUrl: coverUrl,
@@ -334,6 +409,12 @@ export async function PUT(request: Request) {
     let price = 0;
     let stock = 10;
     let description = "";
+    let discountPriceRaw: unknown = undefined;
+    let subcategory = "";
+    let gender = "";
+    let keyFeaturesRaw: unknown = undefined;
+    let materials = "";
+    let careInstructions = "";
     let newFiles: File[] = [];
     let imageOrder: string[] | null = null;
     let nameSent = false;
@@ -342,6 +423,12 @@ export async function PUT(request: Request) {
     let priceSent = false;
     let stockSent = false;
     let descriptionSent = false;
+    let discountPriceSent = false;
+    let subcategorySent = false;
+    let genderSent = false;
+    let keyFeaturesSent = false;
+    let materialsSent = false;
+    let careInstructionsSent = false;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -352,12 +439,24 @@ export async function PUT(request: Request) {
       priceSent = formData.has("price");
       stockSent = formData.has("stock");
       descriptionSent = formData.has("description");
+      discountPriceSent = formData.has("discountPrice");
+      subcategorySent = formData.has("subcategory");
+      genderSent = formData.has("gender");
+      keyFeaturesSent = formData.has("keyFeatures");
+      materialsSent = formData.has("materials");
+      careInstructionsSent = formData.has("careInstructions");
       name = (formData.get("name") as string) || "";
       brand = (formData.get("brand") as string) || "";
       category = (formData.get("category") as string) || "Sneakers";
       price = Number((formData.get("price") as string) || "0") || 0;
       stock = parseInt((formData.get("stock") as string) || "10", 10);
       description = (formData.get("description") as string) || "";
+      discountPriceRaw = formData.get("discountPrice");
+      subcategory = (formData.get("subcategory") as string) || "";
+      gender = (formData.get("gender") as string) || "";
+      keyFeaturesRaw = formData.get("keyFeatures");
+      materials = (formData.get("materials") as string) || "";
+      careInstructions = (formData.get("careInstructions") as string) || "";
 
       newFiles = collectFiles(formData.getAll("newImages"));
       const legacyFile = formData.get("image");
@@ -397,12 +496,24 @@ export async function PUT(request: Request) {
       priceSent = hasOwn(body, "price");
       stockSent = hasOwn(body, "stock");
       descriptionSent = hasOwn(body, "description");
+      discountPriceSent = hasOwn(body, "discountPrice");
+      subcategorySent = hasOwn(body, "subcategory");
+      genderSent = hasOwn(body, "gender");
+      keyFeaturesSent = hasOwn(body, "keyFeatures");
+      materialsSent = hasOwn(body, "materials");
+      careInstructionsSent = hasOwn(body, "careInstructions");
       name = body.name || "";
       brand = body.brand || "";
       category = body.category || "Sneakers";
       price = Number(body.price) || 0;
       stock = Number(body.stock) || 10;
       description = body.description || "";
+      discountPriceRaw = body.discountPrice;
+      subcategory = body.subcategory || "";
+      gender = body.gender || "";
+      keyFeaturesRaw = body.keyFeatures;
+      materials = body.materials || "";
+      careInstructions = body.careInstructions || "";
 
       if (body.imageOrder !== undefined) {
         if (!Array.isArray(body.imageOrder) || !body.imageOrder.every((item: unknown) => typeof item === "string")) {
@@ -457,6 +568,45 @@ export async function PUT(request: Request) {
         { success: false, error: "Product name is required" },
         { status: 400 }
       );
+    }
+
+    const mergedSubcategory = subcategorySent
+      ? cleanText(subcategory, 60)
+      : cleanText(stored.subcategory, 60);
+    const mergedGender = genderSent ? cleanText(gender, 60) : cleanText(stored.gender, 60);
+    if (mergedGender !== "" && !PRODUCT_GENDERS.includes(mergedGender as any)) {
+      return NextResponse.json({ success: false, error: "Invalid gender" }, { status: 400 });
+    }
+    const mergedKeyFeatures = keyFeaturesSent
+      ? parseKeyFeatures(keyFeaturesRaw)
+      : parseKeyFeatures(stored.keyFeatures);
+    const mergedMaterials = materialsSent
+      ? cleanText(materials, MAX_LONG_TEXT_LENGTH)
+      : cleanText(stored.materials, MAX_LONG_TEXT_LENGTH);
+    const mergedCareInstructions = careInstructionsSent
+      ? cleanText(careInstructions, MAX_LONG_TEXT_LENGTH)
+      : cleanText(stored.careInstructions, MAX_LONG_TEXT_LENGTH);
+
+    // Discount: not sent keeps the stored value; sent empty clears it (null);
+    // sent with a value must be finite, > 0 and strictly lower than the price.
+    let mergedDiscountPrice: number | null;
+    if (!discountPriceSent) {
+      mergedDiscountPrice = stored.discountPrice ?? null;
+    } else {
+      const discountRawTrimmed =
+        typeof discountPriceRaw === "string" ? discountPriceRaw.trim() : discountPriceRaw;
+      if (discountRawTrimmed === undefined || discountRawTrimmed === null || discountRawTrimmed === "") {
+        mergedDiscountPrice = null;
+      } else {
+        const parsedDiscount = Number(discountRawTrimmed);
+        if (!Number.isFinite(parsedDiscount) || parsedDiscount <= 0 || !(parsedDiscount < mergedPrice)) {
+          return NextResponse.json(
+            { success: false, error: "Discount price must be lower than the price" },
+            { status: 400 }
+          );
+        }
+        mergedDiscountPrice = parsedDiscount;
+      }
     }
 
     // imageOrder entries: existing URL on this product, or "new:<k>".
@@ -545,14 +695,32 @@ export async function PUT(request: Request) {
         images: finalImages,
       }).ok;
 
+      // Never change an existing SKU; generate one only when the stored product
+      // has none. A throw here rolls back the uploads via the catch below.
+      let sku = typeof stored.sku === "string" ? stored.sku.trim() : "";
+      if (!sku) {
+        const generated = await generateUniqueSku();
+        if (!generated) {
+          throw new Error("Failed to generate a unique SKU after 8 attempts");
+        }
+        sku = generated;
+      }
+
       const updatePayload = {
         name: mergedName,
         title: mergedName,
         brand: mergedBrand,
         category: mergedCategory,
+        subcategory: mergedSubcategory,
+        gender: mergedGender,
         price: mergedPrice,
+        discountPrice: mergedDiscountPrice,
+        sku,
         stock: mergedStock,
         description: mergedDescription,
+        keyFeatures: mergedKeyFeatures,
+        materials: mergedMaterials,
+        careInstructions: mergedCareInstructions,
         images: finalImages,
         imageUrl: coverUrl,
         mainImageUrl: coverUrl,
