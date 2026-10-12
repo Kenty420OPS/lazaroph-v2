@@ -76,6 +76,13 @@ Store Settings and payment methods management.
 - Open: Firestore rules still allow admin client writes to orders (no code path uses it today); consider closing in Mission 10 hardening.
 - Test orders from the Part B preview tests are kept until Part C; delete ALL of them then and re-activate payment methods.
 
+### Products mission (Done)
+- P1–P3: PR #15, merge commit ae6c5ee. Shared helpers in lib/product.ts, server image validation and rollback (up to 4 images, exactly 4 to publish, 1 MB per image), 4-slot admin form with client compression, "Simulate Upload Failure" removed.
+- P4: PR #16, merge commit c63aac6. Draft/active filter: drafts hidden from the public catalog and from ordering, admin list shows Live/Draft with what is missing.
+- P5a and P5b: PR #17, merge commit 0ad7a8f. Server-generated immutable SKU (LZPH-XXXXX), discountPrice (must be lower than price), subcategory, gender, key features, materials, care instructions; orders charge the effective price and store originalPrice and sku; shop grid shows the discounted price and the cart uses the charged price.
+- P6: PR #18, merge commit da6c464. Public GET /api/products/[id] (404 for missing and non-live products with the same response) and the /shop/[id] detail page.
+- P7: PR #20, merge commit 5f5f34e. Managed brand list: lib/brands.ts, public GET /api/brands, admin POST and DELETE /api/admin/brands (admin or superadmin; slug document id with create(); delete blocked while a product uses the brand), Brands tab in the admin panel, brand dropdown in the product form with server-side validation (legacy free-text brands stay editable when unchanged). No rename, no seed script.
+
 ## Current Mission
 
 ### Mission 10 (backlog)
@@ -88,6 +95,16 @@ Store Settings and payment methods management.
 7. Turnover to the new owner: create their superadmin account, remove montoyaclark8@gmail.com and other test accounts (Admin Management, then Firebase Auth), review Firebase, Vercel, GitHub, and domain ownership.
 8. Optional: add Vercel preview domains to Firebase Authorized domains if Google sign-in is needed on previews.
 9. Verify the deactivate-then-reload case on checkout (an inactive method disappears from the dropdown) and confirm the full payment method snapshot (type, account name, account number) on the order doc. Both were skipped during Mission 9 verification.
+10. Products gap: on product PUT, lowering the price without sending discountPrice leaves a stale discountPrice (ignored by getEffectivePrice, to clean up in hardening).
+11. Products gap: public product routes use the client SDK; draft hiding is app-level only, so Firestore rules still allow public reads of draft products. Consider moving public routes to the Admin SDK and closing public read.
+12. Products gap: /api/products logs a "Dynamic server usage" message during next build (uses request.url); harmless but could be silenced with `export const dynamic = "force-dynamic"`.
+13. Products gap: brand matching is exact and case-sensitive; renaming brands is not supported.
+14. Products gap: the brand in-use check on delete is not atomic with product creation (very small race).
+15. Products gap: public product list still leaks error.message in 500s (and orders, product DELETE, admin orders).
+
+### Status and next (Oct 13, 2026)
+- The Products mission (P1–P7) is done in code; owner browser tests for P3–P7 (test products only) are still to be confirmed.
+- Next mission: Launch hardening — generic 500s, order idempotency, rate limiting on /api/orders, email trim in admin create, close admin client writes to orders in Firestore rules, fix stale scripts/verify-mission-3.mjs, plus the product gaps above.
 
 ## Final Cleanup (do LAST, after all missions)
 
