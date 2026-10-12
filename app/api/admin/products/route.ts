@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
+import { brandSlug } from "@/lib/brands";
 import { validateImageUpload } from "@/lib/image-validation";
 import {
   REQUIRED_IMAGE_COUNT,
@@ -33,6 +34,17 @@ async function generateUniqueSku(): Promise<string | null> {
     if (existing.empty) return candidate;
   }
   return null;
+}
+
+// True only when a brand document for name's slug exists and its stored name
+// matches name exactly. Never true for an empty name.
+async function isKnownBrand(name: string): Promise<boolean> {
+  const slug = brandSlug(name);
+  if (slug.length < 1) return false;
+  const snap = await adminDb.collection("brands").doc(slug).get();
+  if (!snap.exists) return false;
+  const storedName = (snap.data() as any)?.name;
+  return typeof storedName === "string" && storedName === name;
 }
 
 // Duck-typed check for a usable (non-empty) multipart file entry.
@@ -277,6 +289,12 @@ export async function POST(request: Request) {
 
     const mergedName = name.trim();
     const mergedBrand = brand.trim();
+
+    // Non-empty brands must be a known managed brand on create.
+    if (mergedBrand !== "" && (mergedBrand.length > 60 || !(await isKnownBrand(mergedBrand)))) {
+      return NextResponse.json({ success: false, error: "Invalid brand" }, { status: 400 });
+    }
+
     const mergedCategory = category.trim();
     const mergedPrice = Number(price);
     const mergedStock = Number(stock);
@@ -558,6 +576,15 @@ export async function PUT(request: Request) {
 
     const mergedName = (nameSent ? name : storedName).trim();
     const mergedBrand = (brandSent ? brand : storedBrand).trim();
+
+    // A brand change must point at a known managed brand; keeping the stored
+    // value is always accepted so legacy free-text brands stay editable.
+    if (mergedBrand !== "" && mergedBrand !== storedBrand) {
+      if (mergedBrand.length > 60 || !(await isKnownBrand(mergedBrand))) {
+        return NextResponse.json({ success: false, error: "Invalid brand" }, { status: 400 });
+      }
+    }
+
     const mergedCategory = (categorySent ? category : storedCategory).trim();
     const mergedDescription = (descriptionSent ? description : storedDescription).trim();
     const mergedPrice = toNumber(priceSent ? price : stored.price, 0);

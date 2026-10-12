@@ -6,6 +6,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "f
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
+import BrandsSettings from "@/components/BrandsSettings";
 import {
   ORDER_STATUSES,
   getAllowedStatuses,
@@ -51,7 +52,7 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands">("products");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -69,6 +70,7 @@ export default function AdminPage() {
   const [editingSku, setEditingSku] = useState("");
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
+  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
   const [category, setCategory] = useState("Sneakers");
   const [subcategory, setSubcategory] = useState("");
   const [gender, setGender] = useState("");
@@ -101,6 +103,7 @@ export default function AdminPage() {
             setAuthLoading(false);
             verifyAndLoad();
             verifyAndLoadOrders();
+            loadBrands();
           } else {
             // Non-anonymous, but missing admin claim
             await signOut(auth);
@@ -186,6 +189,20 @@ export default function AdminPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Loads the managed brand list from the public endpoint. On failure the
+  // previous list is kept so edits are never blocked by a fetch issue.
+  const loadBrands = async () => {
+    try {
+      const response = await fetch("/api/brands");
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.success) {
+        setBrands(data.brands || []);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -554,7 +571,10 @@ export default function AdminPage() {
         <div className="flex items-center space-x-4">
           <div className="hidden sm:flex bg-neutral-900 p-1 rounded-lg border border-neutral-800">
             <button
-              onClick={() => setActiveTab("products")}
+              onClick={() => {
+                setActiveTab("products");
+                loadBrands();
+              }}
               className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "products" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Products
@@ -592,6 +612,12 @@ export default function AdminPage() {
                 Store Settings
               </button>
             )}
+            <button
+              onClick={() => setActiveTab("brands")}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "brands" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+            >
+              Brands
+            </button>
           </div>
           <span className="text-xs text-neutral-400">{user.email}</span>
           <button onClick={handleLogout} className="bg-neutral-900 border border-neutral-700 px-4 py-2 text-xs font-bold rounded-lg hover:bg-neutral-800 transition-colors">Logout</button>
@@ -639,7 +665,15 @@ export default function AdminPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Brand</label>
-                      <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                      <select value={brand} onChange={(e) => setBrand(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
+                        <option value="">No brand</option>
+                        {brands.map((b) => (
+                          <option key={b.id} value={b.name}>{b.name}</option>
+                        ))}
+                        {brand && !brands.some((b) => b.name === brand) && (
+                          <option value={brand}>{brand} (not in list)</option>
+                        )}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Category *</label>
@@ -1058,6 +1092,10 @@ export default function AdminPage() {
 
         {activeTab === "settings" && userRole === 'superadmin' && (
           <PaymentMethodsSettings />
+        )}
+
+        {activeTab === "brands" && (
+          <BrandsSettings />
         )}
 
         {activeTab === "chats" && (
