@@ -16,7 +16,9 @@ import { compressImage } from "@/lib/client-image";
 import {
   REQUIRED_IMAGE_COUNT,
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
+  PRODUCT_GENDERS,
   normalizeImages,
+  hasValidDiscount,
 } from "@/lib/product";
 
 // One slot in the product photo form: either an image already saved on the
@@ -64,12 +66,19 @@ export default function AdminPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState("");
+  const [editingSku, setEditingSku] = useState("");
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [category, setCategory] = useState("Sneakers");
+  const [subcategory, setSubcategory] = useState("");
+  const [gender, setGender] = useState("");
   const [price, setPrice] = useState("");
+  const [discountPrice, setDiscountPrice] = useState("");
   const [stock, setStock] = useState("10");
   const [description, setDescription] = useState("");
+  const [keyFeatures, setKeyFeatures] = useState("");
+  const [materials, setMaterials] = useState("");
+  const [careInstructions, setCareInstructions] = useState("");
   const [imageSlots, setImageSlots] = useState<PhotoSlot[]>([]);
 
   useEffect(() => {
@@ -191,12 +200,19 @@ export default function AdminPage() {
     revokeNewSlotPreviews(imageSlots);
     setImageSlots([]);
     setEditingId("");
+    setEditingSku("");
     setName("");
     setBrand("");
     setCategory("Sneakers");
+    setSubcategory("");
+    setGender("");
     setPrice("");
+    setDiscountPrice("");
     setStock("10");
     setDescription("");
+    setKeyFeatures("");
+    setMaterials("");
+    setCareInstructions("");
 
     const fileInput = document.getElementById("imageUpload") as HTMLInputElement;
     if (fileInput) fileInput.value = "";
@@ -208,12 +224,19 @@ export default function AdminPage() {
       normalizeImages(p).map((img) => ({ kind: "existing" as const, url: img.imageUrl }))
     );
     setEditingId(p.id);
+    setEditingSku(typeof p.sku === "string" ? p.sku : "");
     setName(p.name || p.title || "");
     setBrand(p.brand || "");
     setCategory(p.category || "Sneakers");
+    setSubcategory(p.subcategory || "");
+    setGender(p.gender || "");
     setPrice(p.price?.toString() || "");
+    setDiscountPrice(p.discountPrice != null ? String(p.discountPrice) : "");
     setStock(p.stock?.toString() || "10");
     setDescription(p.description || "");
+    setKeyFeatures(Array.isArray(p.keyFeatures) ? p.keyFeatures.join("\n") : p.keyFeatures || "");
+    setMaterials(p.materials || "");
+    setCareInstructions(p.careInstructions || "");
   };
 
   // Compresses and appends picked files, never exceeding the slot limit. A
@@ -393,9 +416,15 @@ export default function AdminPage() {
       formData.append("name", name);
       formData.append("brand", brand);
       formData.append("category", category);
+      formData.append("subcategory", subcategory);
+      formData.append("gender", gender);
       formData.append("price", price);
+      formData.append("discountPrice", discountPrice);
       formData.append("stock", stock);
       formData.append("description", description);
+      formData.append("keyFeatures", keyFeatures);
+      formData.append("materials", materials);
+      formData.append("careInstructions", careInstructions);
 
       newFiles.forEach((file) => formData.append("newImages", file));
 
@@ -598,6 +627,15 @@ export default function AdminPage() {
                     <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
                   </div>
 
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">SKU</label>
+                    {editingId ? (
+                      <p className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-400">SKU: {editingSku || "—"}</p>
+                    ) : (
+                      <p className="text-[10px] text-neutral-500">SKU is generated automatically</p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Brand</label>
@@ -622,6 +660,28 @@ export default function AdminPage() {
                       <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Stock</label>
                       <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Discount Price (₱)</label>
+                      <input type="number" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} min="0" step="0.01" placeholder="Optional" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                      <p className="text-[9px] text-neutral-500 mt-1">Must be lower than the price</p>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Target Gender</label>
+                      <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
+                        <option value="">—</option>
+                        {PRODUCT_GENDERS.map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Subcategory</label>
+                    <input type="text" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
                   </div>
 
                   <div>
@@ -675,6 +735,22 @@ export default function AdminPage() {
                     <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Description</label>
                     <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
                   </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Key Features</label>
+                    <textarea value={keyFeatures} onChange={(e) => setKeyFeatures(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                    <p className="text-[9px] text-neutral-500 mt-1">Up to 10 lines</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Materials &amp; Specs</label>
+                    <textarea value={materials} onChange={(e) => setMaterials(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Care Instructions</label>
+                    <textarea value={careInstructions} onChange={(e) => setCareInstructions(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                  </div>
                 </div>
 
                 <div className="pt-2 flex gap-3">
@@ -714,7 +790,15 @@ export default function AdminPage() {
                         </div>
                         <div>
                           <h3 className="text-xs font-bold text-white">{p.name || p.title}</h3>
-                          <p className="text-xs font-bold text-neutral-300 mt-1">₱{Number(p.price || 0).toLocaleString("en-PH")}</p>
+                          {p.sku && <p className="text-[9px] text-neutral-500 mt-0.5">SKU: {p.sku}</p>}
+                          {hasValidDiscount(Number(p.price), p.discountPrice) ? (
+                            <p className="text-xs font-bold text-neutral-300 mt-1">
+                              ₱{Number(p.discountPrice).toLocaleString("en-PH")}{" "}
+                              <span className="text-neutral-500 line-through">₱{Number(p.price || 0).toLocaleString("en-PH")}</span>
+                            </p>
+                          ) : (
+                            <p className="text-xs font-bold text-neutral-300 mt-1">₱{Number(p.price || 0).toLocaleString("en-PH")}</p>
+                          )}
                           {p.isActive ? (
                             <span className="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-green-500/10 text-green-500 border border-green-500/20">Live</span>
                           ) : (

@@ -3,7 +3,7 @@ import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
-import { isProductActive } from "@/lib/product";
+import { isProductActive, getChargedPrice } from "@/lib/product";
 
 const MAX_QTY_PER_ITEM = 99;
 
@@ -95,19 +95,28 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Product is out of stock: ${id}` }, { status: 400 });
       }
 
-      const price = Number(product.price);
-      if (!Number.isFinite(price) || price < 0) {
-        return NextResponse.json({ success: false, error: `Product has invalid price: ${id}` }, { status: 400 });
+      const chargedPrice = getChargedPrice(product);
+      if (!Number.isFinite(chargedPrice) || chargedPrice <= 0) {
+        return NextResponse.json({ success: false, error: `Product is not available: ${id}` }, { status: 400 });
       }
 
-      items.push({
+      const item: any = {
         id,
         name: product.name || product.title || "",
-        price,
+        price: chargedPrice,
         imageUrl: product.imageUrl || product.mainImageUrl || "",
         quantity,
-      });
-      subtotal += price * quantity;
+      };
+      const originalPrice = Number(product.price);
+      if (Number.isFinite(originalPrice) && chargedPrice < originalPrice) {
+        item.originalPrice = originalPrice;
+      }
+      if (typeof product.sku === "string" && product.sku !== "") {
+        item.sku = product.sku;
+      }
+
+      items.push(item);
+      subtotal += chargedPrice * quantity;
     }
 
     const shippingFee = getShippingFee(courier, region);
