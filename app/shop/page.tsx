@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
+import { hasValidDiscount, getChargedPrice } from "@/lib/product";
 
 interface Product {
   id: string;
   name?: string;
   title?: string;
   price?: number | string;
+  discountPrice?: number | null;
   category?: string;
   brand?: string;
   image?: string;
@@ -68,8 +70,8 @@ export default function ShopPage() {
 
   // Sorting
   const sortedProducts = [...products].sort((a, b) => {
-    const priceA = Number(a.price) || 0;
-    const priceB = Number(b.price) || 0;
+    const priceA = getChargedPrice(a);
+    const priceB = getChargedPrice(b);
     const nameA = (a.name || a.title || "").toLowerCase();
     const nameB = (b.name || b.title || "").toLowerCase();
 
@@ -227,6 +229,9 @@ export default function ShopPage() {
               const displayImage = product.mainImageUrl || product.imageUrl || product.image || (product.images && product.images[0]?.imageUrl) || "";
               const priceNumber = Number(product.price) || 0;
               const formattedPrice = `₱${priceNumber.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+              const discounted = hasValidDiscount(Number(product.price), product.discountPrice);
+              const chargedPriceNumber = getChargedPrice(product);
+              const formattedChargedPrice = `₱${chargedPriceNumber.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
               return (
                 <div
@@ -275,7 +280,14 @@ export default function ShopPage() {
                     <div className="mt-4 pt-3 border-t border-neutral-800 flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-neutral-400 block uppercase font-medium">Price</span>
-                        <span className="text-base font-extrabold text-white">{formattedPrice}</span>
+                        {discounted ? (
+                          <span className="text-base font-extrabold text-white">
+                            {formattedChargedPrice}{" "}
+                            <span className="text-xs font-normal text-neutral-500 line-through ml-1">{formattedPrice}</span>
+                          </span>
+                        ) : (
+                          <span className="text-base font-extrabold text-white">{formattedPrice}</span>
+                        )}
                       </div>
 
                       <button
@@ -284,7 +296,7 @@ export default function ShopPage() {
                           addToCart({
                             id: product.id,
                             name: product.name || product.title || "Untitled Product",
-                            price: priceNumber,
+                            price: getChargedPrice(product),
                             imageUrl: displayImage
                           });
                         }}
