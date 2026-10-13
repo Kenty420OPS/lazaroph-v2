@@ -131,6 +131,43 @@ export function generateSkuCandidate(): string {
   return sku
 }
 
+// The three v1 product categories. Shared by the public catalog filter, the
+// admin product form and the homepage category cards.
+export const PRODUCT_CATEGORIES = ["Sneakers", "Bags & Luggage", "Watches"] as const
+
+// True only when value exactly matches one of PRODUCT_CATEGORIES.
+export function isValidCategory(value: unknown): boolean {
+  return typeof value === "string" && (PRODUCT_CATEGORIES as readonly string[]).includes(value)
+}
+
+// Homepage category cards. `image` is null for now, so the card falls back to a
+// gradient with the category name until a real image is provided.
+export const CATEGORY_CARDS: {
+  name: (typeof PRODUCT_CATEGORIES)[number]
+  slug: string
+  image: string | null
+  blurb: string
+}[] = [
+  {
+    name: "Sneakers",
+    slug: "sneakers",
+    image: null,
+    blurb: "Authentic kicks, verified and priced below market.",
+  },
+  {
+    name: "Bags & Luggage",
+    slug: "bags-luggage",
+    image: null,
+    blurb: "Premium bags and travel-ready luggage.",
+  },
+  {
+    name: "Watches",
+    slug: "watches",
+    image: null,
+    blurb: "Timeless timepieces, legit and guaranteed.",
+  },
+]
+
 // Target audience options accepted by the admin product form.
 export const PRODUCT_GENDERS = ["Men", "Women", "Kids", "Unisex"] as const
 
