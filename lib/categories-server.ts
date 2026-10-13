@@ -30,6 +30,7 @@ function readOptionalFields(
     tagline: typeof source.tagline === "string" ? source.tagline : undefined,
     showOnHomepage:
       typeof source.showOnHomepage === "boolean" ? source.showOnHomepage : true,
+    disabled: typeof source.disabled === "boolean" ? source.disabled : false,
   };
 }
 
@@ -37,8 +38,8 @@ function readOptionalFields(
 // fixed order (with their blurb), followed by the admin-created Firestore
 // categories sorted case-insensitively by name.
 //
-// A document stored under a built-in slug may only customise imageUrl, tagline
-// and showOnHomepage — its name and builtIn flag always come from code, so a
+// A document stored under a built-in slug may only customise imageUrl, tagline,
+// showOnHomepage and disabled — its name and builtIn flag always come from code, so a
 // built-in can never be renamed or turned into a custom category through its
 // doc. A built-in with no doc returns exactly the code-defined entry with the
 // default presentation fields.
@@ -70,4 +71,12 @@ export async function getPublicCategories(): Promise<PublicCategory[]> {
     .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
   return [...builtIn, ...custom];
+}
+
+// True only when a category with exactly this name (case-sensitive) exists in
+// the public list and has disabled === true. Unknown names return false.
+export async function isCategoryDisabled(name: string): Promise<boolean> {
+  const categories = await getPublicCategories();
+  const match = categories.find((category) => category.name === name);
+  return match?.disabled === true;
 }

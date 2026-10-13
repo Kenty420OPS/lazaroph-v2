@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 // GET /api/categories — public list of categories (no auth). Built-in
 // categories come first in their fixed order, followed by admin-created
 // Firestore categories sorted case-insensitively by name. Each entry carries
-// the optional presentation fields (imageUrl, tagline, showOnHomepage); the
-// internal imagePath is never exposed.
+// the optional presentation fields (imageUrl, tagline, showOnHomepage,
+// disabled); the internal imagePath is never exposed.
 export async function GET() {
   try {
     const categories = (await getPublicCategories()).map((category) => ({
@@ -18,6 +18,7 @@ export async function GET() {
       imageUrl: category.imageUrl ?? null,
       tagline: category.tagline,
       showOnHomepage: category.showOnHomepage ?? true,
+      disabled: category.disabled ?? false,
     }));
 
     return NextResponse.json(
