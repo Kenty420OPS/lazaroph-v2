@@ -3,6 +3,7 @@ import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 import { brandSlug } from "@/lib/brands";
 import { DEFAULT_CATEGORIES, categorySlug } from "@/lib/categories";
+import { isCategoryDisabled } from "@/lib/categories-server";
 import { validateImageUpload } from "@/lib/image-validation";
 import {
   REQUIRED_IMAGE_COUNT,
@@ -315,6 +316,13 @@ export async function POST(request: Request) {
     if (!(await isKnownCategory(mergedCategory))) {
       return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
     }
+    // A disabled category cannot be chosen for a new product.
+    if (await isCategoryDisabled(mergedCategory)) {
+      return NextResponse.json(
+        { success: false, error: "Category is not available" },
+        { status: 400 }
+      );
+    }
     const mergedPrice = Number(price);
     const mergedStock = Number(stock);
     const mergedDescription = description.trim();
@@ -605,10 +613,19 @@ export async function PUT(request: Request) {
     }
 
     const mergedCategory = (categorySent ? category : storedCategory).trim();
-    // A category change must be a known category; keeping the stored value is
-    // always accepted so legacy categories stay editable unchanged.
-    if (!(await isKnownCategory(mergedCategory)) && mergedCategory !== storedCategory.trim()) {
-      return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
+    // A category change must be a known, enabled category; keeping the stored
+    // value is always accepted so legacy categories stay editable unchanged,
+    // even when that stored category is disabled.
+    if (mergedCategory !== storedCategory.trim()) {
+      if (!(await isKnownCategory(mergedCategory))) {
+        return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
+      }
+      if (await isCategoryDisabled(mergedCategory)) {
+        return NextResponse.json(
+          { success: false, error: "Category is not available" },
+          { status: 400 }
+        );
+      }
     }
     const mergedDescription = (descriptionSent ? description : storedDescription).trim();
     const mergedPrice = toNumber(priceSent ? price : stored.price, 0);
