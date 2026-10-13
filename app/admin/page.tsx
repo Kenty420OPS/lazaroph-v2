@@ -1132,7 +1132,7 @@ export default function AdminPage() {
         )}
 
         {activeTab === "categories" && (
-          <CategoriesSettings />
+          <CategoriesSettings products={products} />
         )}
 
         {activeTab === "chats" && (
