@@ -34,7 +34,7 @@ service cloud.firestore {
 
     match /categories/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     // 2. Orders: Non-anonymous users can read their own orders; Admin can read/write all
@@ -114,9 +114,9 @@ service cloud.firestore {
       }
     }
 
-    // 6. Strict default fallback: All unhandled collections are ADMIN-ONLY
+    // 6. Strict default fallback: All unlisted paths are DENIED.
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }

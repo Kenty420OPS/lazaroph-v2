@@ -9,5 +9,9 @@ service firebase.storage {
       allow read: if true;
       allow write: if false;
     }
+    match /categories/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }
