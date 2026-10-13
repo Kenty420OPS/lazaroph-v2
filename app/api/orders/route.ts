@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminStorage } from "@/lib/firebase-admin";
+import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
@@ -22,7 +22,23 @@ export async function POST(request: Request) {
     const referenceNumber = formData.get("referenceNumber") as string;
     const cartStr = formData.get("cart") as string;
     const paymentImage = formData.get("paymentImage") as File;
-    const uid = formData.get("uid") as string | null;
+
+    // Derive the chat uid from a verified ID token only. The client-supplied
+    // `uid` form field is NOT trusted for conversation writes.
+    let chatUid: string | null = null;
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      if (token) {
+        try {
+          const decodedToken = await adminAuth.verifyIdToken(token);
+          chatUid = decodedToken.uid;
+        } catch (authError) {
+          console.error("Failed to verify ID token for chat association:", authError);
+          chatUid = null;
+        }
+      }
+    }
 
     if (!name || !contact || !referenceNumber || !cartStr || !paymentImage) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -227,9 +243,9 @@ export async function POST(request: Request) {
 
     const docRef = await adminDb.collection("orders").add(orderPayload);
 
-    if (uid) {
+    if (chatUid) {
       try {
-        const convRef = adminDb.collection("conversations").doc(uid);
+        const convRef = adminDb.collection("conversations").doc(chatUid);
         const messagesRef = convRef.collection("messages");
         
         const convSnap = await convRef.get();
@@ -238,7 +254,7 @@ export async function POST(request: Request) {
         
         if (!convSnap.exists) {
           batch.set(convRef, {
-            customerId: uid,
+            customerId: chatUid,
             customerName: name || "Guest",
             lastMessage: text,
             updatedAt: FieldValue.serverTimestamp(),

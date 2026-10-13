@@ -201,8 +201,21 @@ export default function CheckoutPage() {
         formData.append("uid", uid);
       }
 
+      // Attach the ID token so the server can verify the chat association.
+      // No Content-Type: the body is FormData.
+      const headers: HeadersInit = {};
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
+        } catch (tokenErr) {
+          console.error("Failed to get auth token", tokenErr);
+        }
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
+        headers,
         body: formData,
       });
 
