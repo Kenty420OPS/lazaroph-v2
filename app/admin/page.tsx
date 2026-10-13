@@ -18,6 +18,7 @@ import {
   REQUIRED_IMAGE_COUNT,
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
   PRODUCT_GENDERS,
+  PRODUCT_CATEGORIES,
   normalizeImages,
   hasValidDiscount,
 } from "@/lib/product";
@@ -678,9 +679,12 @@ export default function AdminPage() {
                     <div>
                       <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Category *</label>
                       <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
-                        <option>Sneakers</option>
-                        <option>Bags & Luggage</option>
-                        <option>Watches</option>
+                        {PRODUCT_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                        {category && !PRODUCT_CATEGORIES.some((c) => c === category) && (
+                          <option value={category}>{category} (legacy)</option>
+                        )}
                       </select>
                     </div>
                   </div>

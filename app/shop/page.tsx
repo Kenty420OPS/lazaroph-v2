@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
-import { hasValidDiscount, getChargedPrice } from "@/lib/product";
+import { hasValidDiscount, getChargedPrice, PRODUCT_CATEGORIES } from "@/lib/product";
 
 interface Product {
   id: string;
@@ -21,14 +22,26 @@ interface Product {
   stock?: number;
 }
 
-const CATEGORIES = ["All", "Sneakers", "Bags & Luggage", "Watches"];
+const CATEGORIES = ["All", ...PRODUCT_CATEGORIES];
 
 export default function ShopPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <ShopPageContent />
+    </Suspense>
+  );
+}
+
+function ShopPageContent() {
   const { addToCart, cartCount } = useCart();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    const param = searchParams.get("category");
+    return param && (PRODUCT_CATEGORIES as readonly string[]).includes(param) ? param : "All";
+  });
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("default");
 

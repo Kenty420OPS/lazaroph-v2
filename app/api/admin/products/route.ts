@@ -9,6 +9,7 @@ import {
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
   MAX_LONG_TEXT_LENGTH,
   PRODUCT_GENDERS,
+  isValidCategory,
   normalizeImages,
   isPublishable,
   isProductActive,
@@ -297,6 +298,9 @@ export async function POST(request: Request) {
     }
 
     const mergedCategory = category.trim();
+    if (!isValidCategory(mergedCategory)) {
+      return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
+    }
     const mergedPrice = Number(price);
     const mergedStock = Number(stock);
     const mergedDescription = description.trim();
@@ -587,6 +591,11 @@ export async function PUT(request: Request) {
     }
 
     const mergedCategory = (categorySent ? category : storedCategory).trim();
+    // A category change must be one of PRODUCT_CATEGORIES; keeping the stored
+    // value is always accepted so legacy categories stay editable unchanged.
+    if (!isValidCategory(mergedCategory) && mergedCategory !== storedCategory.trim()) {
+      return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
+    }
     const mergedDescription = (descriptionSent ? description : storedDescription).trim();
     const mergedPrice = toNumber(priceSent ? price : stored.price, 0);
     const mergedStock = toNumber(stockSent ? stock : stored.stock, Number(stock) || 10);
