@@ -7,6 +7,7 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverT
 import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
 import BrandsSettings from "@/components/BrandsSettings";
+import CategoriesSettings from "@/components/CategoriesSettings";
 import {
   ORDER_STATUSES,
   getAllowedStatuses,
@@ -53,7 +54,7 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands" | "categories">("products");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -72,6 +73,7 @@ export default function AdminPage() {
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; builtIn: boolean }[]>([]);
   const [category, setCategory] = useState("Sneakers");
   const [subcategory, setSubcategory] = useState("");
   const [gender, setGender] = useState("");
@@ -105,6 +107,7 @@ export default function AdminPage() {
             verifyAndLoad();
             verifyAndLoadOrders();
             loadBrands();
+            loadCategories();
           } else {
             // Non-anonymous, but missing admin claim
             await signOut(auth);
@@ -201,6 +204,20 @@ export default function AdminPage() {
       const data = await response.json().catch(() => null);
       if (response.ok && data?.success) {
         setBrands(data.brands || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Loads the managed category list from the public endpoint. On failure the
+  // previous list is kept (the form falls back to the built-in categories).
+  const loadCategories = async () => {
+    try {
+      const response = await fetch("/api/categories");
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.success) {
+        setCategories(data.categories || []);
       }
     } catch (err) {
       console.error(err);
@@ -538,6 +555,11 @@ export default function AdminPage() {
     });
   }
 
+  // The category dropdown list: the managed categories when loaded, otherwise
+  // the built-in PRODUCT_CATEGORIES so the select is never empty.
+  const categoryOptions: string[] =
+    categories.length > 0 ? categories.map((c) => c.name) : [...PRODUCT_CATEGORIES];
+
   if (authLoading) {
     return <div className="min-h-screen bg-black flex justify-center items-center text-white">Loading...</div>;
   }
@@ -575,6 +597,7 @@ export default function AdminPage() {
               onClick={() => {
                 setActiveTab("products");
                 loadBrands();
+                loadCategories();
               }}
               className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "products" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
@@ -618,6 +641,12 @@ export default function AdminPage() {
               className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "brands" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Brands
+            </button>
+            <button
+              onClick={() => setActiveTab("categories")}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "categories" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+            >
+              Categories
             </button>
           </div>
           <span className="text-xs text-neutral-400">{user.email}</span>
@@ -679,10 +708,10 @@ export default function AdminPage() {
                     <div>
                       <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Category *</label>
                       <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
-                        {PRODUCT_CATEGORIES.map((cat) => (
+                        {categoryOptions.map((cat) => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
-                        {category && !PRODUCT_CATEGORIES.some((c) => c === category) && (
+                        {category && !categoryOptions.includes(category) && (
                           <option value={category}>{category} (legacy)</option>
                         )}
                       </select>
@@ -1100,6 +1129,10 @@ export default function AdminPage() {
 
         {activeTab === "brands" && (
           <BrandsSettings />
+        )}
+
+        {activeTab === "categories" && (
+          <CategoriesSettings />
         )}
 
         {activeTab === "chats" && (

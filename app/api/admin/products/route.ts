@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 import { brandSlug } from "@/lib/brands";
+import { DEFAULT_CATEGORIES, categorySlug } from "@/lib/categories";
 import { validateImageUpload } from "@/lib/image-validation";
 import {
   REQUIRED_IMAGE_COUNT,
@@ -9,7 +10,6 @@ import {
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
   MAX_LONG_TEXT_LENGTH,
   PRODUCT_GENDERS,
-  isValidCategory,
   normalizeImages,
   isPublishable,
   isProductActive,
@@ -44,6 +44,20 @@ async function isKnownBrand(name: string): Promise<boolean> {
   const slug = brandSlug(name);
   if (slug.length < 1) return false;
   const snap = await adminDb.collection("brands").doc(slug).get();
+  if (!snap.exists) return false;
+  const storedName = (snap.data() as any)?.name;
+  return typeof storedName === "string" && storedName === name;
+}
+
+// True when name is one of the built-in categories, or a category document for
+// name's slug exists and its stored name matches name exactly. Never true for
+// an empty name or when the slug is empty.
+async function isKnownCategory(name: string): Promise<boolean> {
+  if (name === "") return false;
+  if (DEFAULT_CATEGORIES.some((c) => c.name === name)) return true;
+  const slug = categorySlug(name);
+  if (slug.length < 1) return false;
+  const snap = await adminDb.collection("categories").doc(slug).get();
   if (!snap.exists) return false;
   const storedName = (snap.data() as any)?.name;
   return typeof storedName === "string" && storedName === name;
@@ -298,7 +312,7 @@ export async function POST(request: Request) {
     }
 
     const mergedCategory = category.trim();
-    if (!isValidCategory(mergedCategory)) {
+    if (!(await isKnownCategory(mergedCategory))) {
       return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
     }
     const mergedPrice = Number(price);
@@ -591,9 +605,9 @@ export async function PUT(request: Request) {
     }
 
     const mergedCategory = (categorySent ? category : storedCategory).trim();
-    // A category change must be one of PRODUCT_CATEGORIES; keeping the stored
-    // value is always accepted so legacy categories stay editable unchanged.
-    if (!isValidCategory(mergedCategory) && mergedCategory !== storedCategory.trim()) {
+    // A category change must be a known category; keeping the stored value is
+    // always accepted so legacy categories stay editable unchanged.
+    if (!(await isKnownCategory(mergedCategory)) && mergedCategory !== storedCategory.trim()) {
       return NextResponse.json({ success: false, error: "Invalid category" }, { status: 400 });
     }
     const mergedDescription = (descriptionSent ? description : storedDescription).trim();
