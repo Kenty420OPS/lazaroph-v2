@@ -4,9 +4,12 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice } from "@/lib/product";
+import { createRateLimiter } from "@/lib/rate-limit";
 
 const MAX_QTY_PER_ITEM = 99;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const orderLimiter = createRateLimiter({ maxRequests: 10, windowMs: 10 * 60 * 1000 });
 
 function isAlreadyExists(error: any): boolean {
   return (
@@ -20,6 +23,26 @@ function isAlreadyExists(error: any): boolean {
 
 export async function POST(request: Request) {
   try {
+    const xForwardedFor = request.headers.get("x-forwarded-for");
+    let ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : null;
+    if (!ip) {
+      const xRealIp = request.headers.get("x-real-ip");
+      ip = xRealIp ? xRealIp.trim() : null;
+    }
+
+    if (ip) {
+      const { allowed, retryAfterSeconds } = orderLimiter(ip);
+      if (!allowed) {
+        return NextResponse.json(
+          { success: false, error: "Too many requests. Please try again later." },
+          {
+            status: 429,
+            headers: { "Retry-After": String(retryAfterSeconds) },
+          }
+        );
+      }
+    }
+
     const formData = await request.formData();
 
     const rawIdempotencyKey = formData.get("idempotencyKey");
