@@ -1,6 +1,7 @@
 import { CATEGORY_CARDS } from "./product";
 
 export const CATEGORY_NAME_MAX = 40;
+export const CATEGORY_TAGLINE_MAX = 80;
 
 const CONTROL_CHARS_RE = /[\u0000-\u001f\u007f]/;
 const CATEGORY_ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -59,6 +60,40 @@ export function isValidCategoryId(id: unknown): boolean {
     id.length <= CATEGORY_ID_MAX &&
     CATEGORY_ID_RE.test(id)
   );
+}
+
+// Optional per-category presentation fields. They are stored on the
+// categories/<slug> document and merged onto the public list. imagePath is an
+// internal Storage detail and is intentionally NOT part of this type.
+export type CategoryOptionalFields = {
+  imageUrl?: string | null;
+  tagline?: string;
+  showOnHomepage?: boolean;
+};
+
+// Validates + normalizes a raw category tagline. Reports errors the same way
+// validateCategoryName does: a discriminated union, never throws.
+// Empty (or whitespace-only) input is allowed and normalizes to "".
+export function normalizeTagline(
+  input: unknown
+): { ok: true; tagline: string } | { ok: false; error: string } {
+  if (typeof input !== "string") {
+    return { ok: false, error: "Tagline must be a string" };
+  }
+
+  const tagline = input.trim().replace(/\s+/g, " ");
+
+  if (tagline.length > CATEGORY_TAGLINE_MAX) {
+    return {
+      ok: false,
+      error: `Tagline must be at most ${CATEGORY_TAGLINE_MAX} characters`,
+    };
+  }
+  if (CONTROL_CHARS_RE.test(tagline)) {
+    return { ok: false, error: "Tagline must not contain control characters" };
+  }
+
+  return { ok: true, tagline };
 }
 
 // Built-in categories, derived from the homepage category cards. These always
