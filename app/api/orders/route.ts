@@ -6,10 +6,27 @@ import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice } from "@/lib/product";
 
 const MAX_QTY_PER_ITEM = 99;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isAlreadyExists(error: any): boolean {
+  return (
+    error?.code === 6 ||
+    error?.code === "6" ||
+    error?.code === "already-exists" ||
+    error?.code === "ALREADY_EXISTS" ||
+    (typeof error?.message === "string" && error.message.includes("ALREADY_EXISTS"))
+  );
+}
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
+
+    const rawIdempotencyKey = formData.get("idempotencyKey");
+    const idempotencyKey =
+      typeof rawIdempotencyKey === "string" && UUID_REGEX.test(rawIdempotencyKey)
+        ? rawIdempotencyKey
+        : null;
 
     const nameRaw = (formData.get("name") as string | null) ?? "";
     const contactRaw = (formData.get("contact") as string | null) ?? "";
@@ -64,6 +81,24 @@ export async function POST(request: Request) {
 
     if (!cartStr || !paymentImage) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (idempotencyKey) {
+      const existingSnap = await adminDb.collection("orders").doc(idempotencyKey).get();
+      if (existingSnap.exists) {
+        const existingData = existingSnap.data();
+        if (existingData?.customer?.contact === contact) {
+          return NextResponse.json({
+            success: true,
+            message: "Order placed successfully",
+            orderId: existingSnap.id,
+          });
+        }
+        return NextResponse.json(
+          { success: false, error: "Duplicate request" },
+          { status: 409 }
+        );
+      }
     }
 
     // NOTE: client-sent `total` and `shippingFee` are intentionally ignored.
@@ -286,7 +321,40 @@ export async function POST(request: Request) {
       }
     }
 
-    const docRef = await adminDb.collection("orders").add(orderPayload);
+    let docRef: any;
+    if (idempotencyKey) {
+      docRef = adminDb.collection("orders").doc(idempotencyKey);
+      try {
+        await docRef.create(orderPayload);
+      } catch (createError: any) {
+        if (isAlreadyExists(createError)) {
+          try {
+            await file.delete();
+          } catch (deleteError) {
+            console.error("Failed to clean up duplicate payment image:", deleteError);
+          }
+
+          const existingSnap = await docRef.get();
+          if (existingSnap.exists) {
+            const existingData = existingSnap.data();
+            if (existingData?.customer?.contact === contact) {
+              return NextResponse.json({
+                success: true,
+                message: "Order placed successfully",
+                orderId: existingSnap.id,
+              });
+            }
+            return NextResponse.json(
+              { success: false, error: "Duplicate request" },
+              { status: 409 }
+            );
+          }
+        }
+        throw createError;
+      }
+    } else {
+      docRef = await adminDb.collection("orders").add(orderPayload);
+    }
 
     if (chatUid) {
       try {

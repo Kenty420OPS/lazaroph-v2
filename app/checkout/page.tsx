@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +12,13 @@ import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const router = useRouter();
+
+  const idempotencyKeyRef = useRef<string | null>(null);
+  if (idempotencyKeyRef.current === null) {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
+  }
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +183,9 @@ export default function CheckoutPage() {
       }
 
       const formData = new FormData();
+      if (idempotencyKeyRef.current) {
+        formData.append("idempotencyKey", idempotencyKeyRef.current);
+      }
       formData.append("name", name);
       formData.append("contact", contact);
       formData.append("address", courier === "Pickup" ? "" : address);
