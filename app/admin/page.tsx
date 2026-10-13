@@ -684,11 +684,11 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">SKU</label>
-                    {editingId ? (
-                      <p className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-400">SKU: {editingSku || "—"}</p>
-                    ) : (
-                      <p className="text-[10px] text-neutral-500">SKU is generated automatically</p>
+                    {editingId && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">SKU</label>
+                        <p className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-400">SKU: {editingSku || "—"}</p>
+                      </div>
                     )}
                   </div>
 
