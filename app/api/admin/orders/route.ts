@@ -72,7 +72,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, orders }, { status: 200 });
   } catch (error: any) {
     console.error("Error fetching orders:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to fetch orders" }, { status: 500 });
   }
 }
 
@@ -129,6 +129,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
     console.error("Error updating order:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to update order" }, { status: 500 });
   }
 }

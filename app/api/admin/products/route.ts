@@ -13,6 +13,7 @@ import {
   isPublishable,
   isProductActive,
   getMissingForPublish,
+  hasValidDiscount,
   parseKeyFeatures,
   cleanText,
   generateSkuCandidate,
@@ -636,6 +637,19 @@ export async function PUT(request: Request) {
       }
     }
 
+    // Invariant: a carried-over discount must still be a real discount
+    // (greater than 0 and strictly lower than the merged price). If a price
+    // change made it equal, higher, or zero, clear it instead of keeping a
+    // meaningless value that would still be charged. Values the admin actually
+    // sends are still rejected with the 400 above when invalid.
+    if (
+      mergedDiscountPrice !== null &&
+      mergedDiscountPrice !== undefined &&
+      !hasValidDiscount(mergedPrice, mergedDiscountPrice)
+    ) {
+      mergedDiscountPrice = null
+    }
+
     // imageOrder entries: existing URL on this product, or "new:<k>".
     if (imageOrder) {
       for (const entry of imageOrder) {
@@ -822,7 +836,7 @@ export async function DELETE(request: Request) {
   } catch (globalError: any) {
     console.error("DELETE /api/admin/products global error:", globalError);
     return NextResponse.json(
-      { success: false, error: globalError.message || "Failed to delete product" },
+      { success: false, error: "Failed to delete product" },
       { status: 500 }
     );
   }

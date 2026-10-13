@@ -41,8 +41,9 @@ export async function POST(request: Request) {
     }
 
     const { email, displayName, role, password } = body;
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
 
-    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return NextResponse.json({ success: false, error: "Invalid email format" }, { status: 400 });
     }
     if (typeof displayName !== "string" || displayName.trim().length < 1 || displayName.length > 100) {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
     let userRecord;
     try {
       userRecord = await adminAuth.createUser({
-        email,
+        email: normalizedEmail,
         password,
         displayName: displayName.trim(),
         emailVerified: false,

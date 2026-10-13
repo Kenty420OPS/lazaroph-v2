@@ -36,7 +36,8 @@ async function verifyRequest(
     try {
       decodedToken = await adminAuth.verifyIdToken(token, true);
     } catch (verifyError: any) {
-      return { isAdmin: false, error: "Unauthorized: " + (verifyError.message || "Invalid or revoked token"), status: 401 };
+      console.error("verifyIdToken error:", verifyError);
+      return { isAdmin: false, error: "Unauthorized", status: 401 };
     }
     const uid = decodedToken.uid;
     const role = (decodedToken as any).role as string | undefined;
@@ -48,7 +49,7 @@ async function verifyRequest(
     return { isAdmin: true, uid, role, status: 200 };
   } catch (error: any) {
     console.error("verifyAdminRequest error:", error);
-    return { isAdmin: false, error: "Unauthorized: " + (error.message || "Invalid token"), status: 401 };
+    return { isAdmin: false, error: "Unauthorized", status: 401 };
   }
 }
 
