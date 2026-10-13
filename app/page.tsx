@@ -17,7 +17,7 @@ export default async function Home() {
   // The homepage only shows the categories the admin left enabled. The managed
   // image, tagline and homepage toggle all come from the category document.
   const homepageCategories = categories.filter(
-    (cat) => cat.showOnHomepage !== false
+    (cat) => cat.disabled !== true && cat.showOnHomepage !== false
   );
 
   return (
