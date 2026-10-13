@@ -73,7 +73,7 @@ export default function AdminPage() {
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string; builtIn: boolean }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; builtIn: boolean; disabled?: boolean }[]>([]);
   const [category, setCategory] = useState("Sneakers");
   const [subcategory, setSubcategory] = useState("");
   const [gender, setGender] = useState("");
@@ -557,8 +557,16 @@ export default function AdminPage() {
 
   // The category dropdown list: the managed categories when loaded, otherwise
   // the built-in PRODUCT_CATEGORIES so the select is never empty.
-  const categoryOptions: string[] =
-    categories.length > 0 ? categories.map((c) => c.name) : [...PRODUCT_CATEGORIES];
+  const categoryOptions: string[] = (() => {
+    if (categories.length > 0) {
+      const active = categories.filter((c) => !c.disabled).map((c) => c.name);
+      if (category && categories.some((c) => c.name === category && c.disabled)) {
+        return [...active, category];
+      }
+      return active;
+    }
+    return [...PRODUCT_CATEGORIES];
+  })();
 
   if (authLoading) {
     return <div className="min-h-screen bg-black flex justify-center items-center text-white">Loading...</div>;
@@ -712,7 +720,9 @@ export default function AdminPage() {
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                         {category && !categoryOptions.includes(category) && (
-                          <option value={category}>{category} (legacy)</option>
+                          <option value={category}>
+                            {category} {categories.some((c) => c.name === category && c.disabled) ? "(disabled)" : "(legacy)"}
+                          </option>
                         )}
                       </select>
                     </div>

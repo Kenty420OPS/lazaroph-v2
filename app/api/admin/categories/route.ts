@@ -165,6 +165,17 @@ export async function PUT(request: Request) {
       update.showOnHomepage = showRaw === "true";
     }
 
+    const disabledRaw = formData.get("disabled");
+    if (disabledRaw !== null) {
+      if (disabledRaw !== "true" && disabledRaw !== "false") {
+        return NextResponse.json(
+          { success: false, error: "disabled must be true or false" },
+          { status: 400 }
+        );
+      }
+      update.disabled = disabledRaw === "true";
+    }
+
     const removeRaw = formData.get("removeImage");
     if (removeRaw !== null && removeRaw !== "true" && removeRaw !== "false") {
       return NextResponse.json(

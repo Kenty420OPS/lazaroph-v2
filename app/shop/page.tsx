@@ -87,17 +87,20 @@ function ShopPageContent() {
         const data = await res.json();
         const names: string[] = Array.isArray(data?.categories)
           ? data.categories
+              .filter((c: any) => c?.disabled !== true)
               .map((c: any) => (typeof c?.name === "string" ? c.name.trim() : ""))
               .filter((name: string) => name !== "")
           : [];
 
-        if (!data?.success || names.length === 0) {
-          throw new Error("Empty category list");
+        if (!data?.success) {
+          throw new Error("Failed to load categories");
         }
         if (cancelled) return;
 
+        // If the response was successful but every category is disabled,
+        // use an empty list (do not fall back to PRODUCT_CATEGORIES).
         setCategoryNames(names);
-        // A ?category= value that is not in the loaded list is reset to "All".
+        // A ?category= value that is not in the enabled list is reset to "All".
         setSelectedCategory((current) =>
           current === "All" || names.includes(current) ? current : "All"
         );

@@ -69,6 +69,7 @@ export type CategoryOptionalFields = {
   imageUrl?: string | null;
   tagline?: string;
   showOnHomepage?: boolean;
+  disabled?: boolean;
 };
 
 // Validates + normalizes a raw category tagline. Reports errors the same way
