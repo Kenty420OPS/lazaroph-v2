@@ -17,6 +17,7 @@ type CategoryRow = {
   imageUrl: string | null;
   tagline: string;
   showOnHomepage: boolean;
+  disabled?: boolean;
 };
 
 type CategoriesSettingsProps = {
@@ -170,6 +171,54 @@ export default function CategoriesSettings({ products = [] }: CategoriesSettings
     } catch (err) {
       console.error(err);
       setError("Failed to delete category");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleDisabled = async (category: CategoryRow) => {
+    const currentlyDisabled = !!category.disabled;
+    const count = productCount(category.name);
+
+    if (!currentlyDisabled && count > 0) {
+      const ok = confirm(
+        `This category has ${count} products. They stay visible in the shop, but you will not be able to add new products to it and it will disappear from the homepage and shop filters. Disable it?`
+      );
+      if (!ok) return;
+    }
+
+    if (!currentlyDisabled && count === 0) {
+      const ok = confirm("Disable this category?");
+      if (!ok) return;
+    }
+
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+    try {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) throw new Error("Not authenticated");
+
+      const formData = new FormData();
+      formData.append("id", category.id);
+      formData.append("disabled", currentlyDisabled ? "false" : "true");
+
+      const res = await fetch("/api/admin/categories", {
+        method: "PUT",
+        headers: { Authorization: authHeader },
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.success) {
+        setSuccess("Category updated.");
+        loadCategories();
+      } else {
+        setError(data?.error || "Failed to update category");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to update category");
     } finally {
       setSubmitting(false);
     }
@@ -349,7 +398,7 @@ export default function CategoriesSettings({ products = [] }: CategoriesSettings
 
                   return [
                     <tr key={c.id} className="border-b border-neutral-800 hover:bg-neutral-900/50 transition-colors text-sm">
-                      <td className="px-3 py-3 align-middle font-bold text-white">
+                      <td className={`px-3 py-3 align-middle font-bold ${c.disabled ? "text-neutral-500" : "text-white"}`}>
                         {c.name}
                         {c.builtIn && (
                           <span className="ml-2 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-neutral-800 text-neutral-400">Built-in</span>
@@ -367,7 +416,7 @@ export default function CategoriesSettings({ products = [] }: CategoriesSettings
                             <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-950 text-amber-300">
                               Hidden on homepage
                             </span>
-                          )}
+                          )}{c.disabled && (<span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-950 text-amber-300">Disabled</span>)}
                         </div>
                       </td>
                       <td className="px-3 py-3 align-middle">
@@ -378,6 +427,13 @@ export default function CategoriesSettings({ products = [] }: CategoriesSettings
                             className="px-2.5 py-1 text-[11px] font-bold bg-neutral-800 text-neutral-200 rounded-lg whitespace-nowrap disabled:opacity-30"
                           >
                             {isEditing ? "Editing" : "Edit"}
+                          </button>
+                          <button
+                            disabled={submitting}
+                            onClick={() => handleToggleDisabled(c)}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-neutral-800 text-neutral-200 rounded-lg whitespace-nowrap disabled:opacity-30"
+                          >
+                            {c.disabled ? "Enable" : "Disable"}
                           </button>
                           {!c.builtIn && (
                             <button
@@ -518,3 +574,5 @@ export default function CategoriesSettings({ products = [] }: CategoriesSettings
     </div>
   );
 }
+
+
