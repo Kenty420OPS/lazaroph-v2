@@ -83,6 +83,24 @@ Store Settings and payment methods management.
 - P6: PR #18, merge commit da6c464. Public GET /api/products/[id] (404 for missing and non-live products with the same response) and the /shop/[id] detail page.
 - P7: PR #20, merge commit 5f5f34e. Managed brand list: lib/brands.ts, public GET /api/brands, admin POST and DELETE /api/admin/brands (admin or superadmin; slug document id with create(); delete blocked while a product uses the brand), Brands tab in the admin panel, brand dropdown in the product form with server-side validation (legacy free-text brands stay editable when unchanged). No rename, no seed script.
 
+### Mission 10 hardening-small (Done)
+- Done in PR #22, merge commit 6202d3b.
+- Generic 500 responses no longer leak error.message to the client (orders, product DELETE, admin orders, public product list).
+- Auth error responses are generic (401/403 with no internal detail).
+- Stale discountPrice is cleared on product PUT when the new price makes it invalid.
+- Admin email is trimmed and lowercased when creating an admin account.
+- Public /api/products route is marked `export const dynamic = "force-dynamic"` to silence the "Dynamic server usage" build warning.
+- Stale scripts/verify-mission-3.mjs removed.
+
+### Mission 10 order-creation hardening (Done)
+- Done in PR #23, merge commit 37b3eb0.
+- Chat uid is derived from a verified Firebase ID token (Authorization: Bearer header), never from the form field (34dc6ba).
+- Customer input validated and trimmed on the server: name (max 100), address (max 500, skipped for Pickup), referenceNumber (4–64 chars), contact (max 50, at least 7 digits after stripping non-digits). Cart capped at 50 line items. Stock checked against the summed quantity per product — no decrement (stock management remains manual) (af1c848).
+- Idempotent order creation: the client generates a UUID per checkout attempt (crypto.randomUUID) and sends it as idempotencyKey. The server uses it as the Firestore document ID, so a retry with the same key returns the existing order instead of creating a duplicate. Orders now have 36-character UUID ids (a1bbef7).
+- Shared in-memory rate limiter extracted to lib/rate-limit.ts. /api/orders is limited to 10 requests per 10 minutes per IP (125cd14).
+- firestore.rules: /orders/{orderId} block changed to `allow write: if false`; admin order writes go exclusively through the server-side API. Rules deployed to the lazaroph-v2 Firebase project after merge (f2c9f2f).
+- Cart page: long order IDs (36-char UUIDs) now wrap with `break-all` instead of being truncated, and the date stays `shrink-0` so cards do not overflow (89c390f).
+
 ## Current Mission
 
 ### Mission 10 (backlog)
@@ -92,19 +110,26 @@ Store Settings and payment methods management.
 4. Admin list filter: Done in PR #7, merge commit 4316f44.
 5. Seed script (outside repo, lazaroph-seed): resolve firebase-admin via createRequire from the repo root, and merge existing claims instead of overwriting.
 6. Cleanup: remove the redundant `block` class next to `flex` on the QR anchor in PaymentMethodsSettings.tsx. Done in PR #9, merge commit 563a697.
-7. Turnover to the new owner: create their superadmin account, remove montoyaclark8@gmail.com and other test accounts (Admin Management, then Firebase Auth), review Firebase, Vercel, GitHub, and domain ownership.
+7. Turnover to the new owner: Done (Oct 9, 2026) — see Final Cleanup section.
 8. Optional: add Vercel preview domains to Firebase Authorized domains if Google sign-in is needed on previews.
 9. Verify the deactivate-then-reload case on checkout (an inactive method disappears from the dropdown) and confirm the full payment method snapshot (type, account name, account number) on the order doc. Both were skipped during Mission 9 verification.
-10. Products gap: on product PUT, lowering the price without sending discountPrice leaves a stale discountPrice (ignored by getEffectivePrice, to clean up in hardening).
-11. Products gap: public product routes use the client SDK; draft hiding is app-level only, so Firestore rules still allow public reads of draft products. Consider moving public routes to the Admin SDK and closing public read.
-12. Products gap: /api/products logs a "Dynamic server usage" message during next build (uses request.url); harmless but could be silenced with `export const dynamic = "force-dynamic"`.
-13. Products gap: brand matching is exact and case-sensitive; renaming brands is not supported.
-14. Products gap: the brand in-use check on delete is not atomic with product creation (very small race).
-15. Products gap: public product list still leaks error.message in 500s (and orders, product DELETE, admin orders).
+10. Products gap: public product routes use the client SDK; draft hiding is app-level only, so Firestore rules still allow public reads of draft products. Consider moving public routes to the Admin SDK and closing public read.
+11. Products gap: brand matching is exact and case-sensitive; renaming brands is not supported.
+12. Products gap: the brand in-use check on delete is not atomic with product creation (very small race).
+
+### Known gaps (post-PR #23)
+- In-memory rate limiting is per serverless instance, not shared across Vercel cold-start instances. It slows simple abuse but does not provide a hard global cap. If shared IPs get spurious 429s, raise the limit or migrate to an external store (e.g. Upstash Redis).
+- Stock is checked against the ordered quantity at submit time but is never decremented. Stock management remains manual (admin updates the product). Two customers can race and both succeed if only one unit is left.
+- A retry with the same idempotency key but a changed cart returns the original order silently. The client never sends a changed cart on retry (it reuses the same FormData), so this is not a real problem today, but it is a known behaviour.
+- The checkout page still sends a `uid` form field; the server ignores it (uid now comes from the verified ID token). The dead field can be removed in a future cleanup.
+- The chat feature still writes conversation and message documents to Firestore directly from the client, which conflicts with Hard Rule #1. This is a known architectural exception; the decision to migrate chat writes through the API is pending.
+- The comment above the /orders Firestore rule still says "Admin can read/write all"; only the `allow write` line was changed. The comment should be updated when rules are next edited.
+- /favicon.ico returns 404; no favicon is present in the repo.
 
 ### Status and next (Oct 13, 2026)
-- The Products mission (P1–P7) is done in code; owner browser tests for P3–P7 (test products only) are still to be confirmed.
-- Next mission: Launch hardening — generic 500s, order idempotency, rate limiting on /api/orders, email trim in admin create, close admin client writes to orders in Firestore rules, fix stale scripts/verify-mission-3.mjs, plus the product gaps above.
+- Mission 10 hardening (PR #22 and PR #23) is merged and deployed.
+- Owner browser tests for Products P3–P7 (test products only) are still to be confirmed.
+- Next: homepage categories, then storefront design and logo (including favicon), policy pages, and the Part C end-to-end test.
 
 ## Final Cleanup (do LAST, after all missions)
 
