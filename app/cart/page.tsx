@@ -143,13 +143,13 @@ export default function CartPage() {
                 return (
                   <div key={orderId} className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 flex flex-col justify-between group hover:border-neutral-700 transition-colors">
                     <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
+                      <div className="flex justify-between items-start gap-2 mb-4">
+                        <div className="min-w-0">
                           <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1 block">Order ID</span>
-                          <p className="font-mono font-bold text-neutral-300 text-sm truncate group-hover:text-white transition-colors">{orderId}</p>
+                          <p className="font-mono font-bold text-neutral-300 text-sm break-all group-hover:text-white transition-colors">{orderId}</p>
                         </div>
                         {!isLegacy && order.date && (
-                          <span className="text-[10px] text-neutral-500 font-medium">
+                          <span className="text-[10px] text-neutral-500 font-medium shrink-0">
                             {new Date(order.date).toLocaleDateString()}
                           </span>
                         )}

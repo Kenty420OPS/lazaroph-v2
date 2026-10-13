@@ -1,31 +1,18 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-const rateLimit = new Map<string, { count: number, resetTime: number }>();
-
-function isRateLimited(ip: string) {
-  // Best-effort in-memory rate limiting for Vercel
-  // Resets on cold start, but good enough as a first layer
-  const now = Date.now();
-  const windowMs = 15 * 60 * 1000;
-  const maxAttempts = 10;
-  
-  const record = rateLimit.get(ip);
-  if (!record || now > record.resetTime) {
-    rateLimit.set(ip, { count: 1, resetTime: now + windowMs });
-    return false;
-  }
-  if (record.count >= maxAttempts) return true;
-  record.count += 1;
-  return false;
-}
+const trackOrderLimiter = createRateLimiter({
+  maxRequests: 10,
+  windowMs: 15 * 60 * 1000,
+});
 
 const normalizeContact = (c: string) => c.replace(/[\s\-\(\)]/g, "");
 
 export async function POST(request: Request) {
   try {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    if (isRateLimited(ip)) {
+    if (!trackOrderLimiter(ip).allowed) {
       return NextResponse.json({ success: false, error: "Too many requests. Please try again later." }, { status: 429 });
     }
 

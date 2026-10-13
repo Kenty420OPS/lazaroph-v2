@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +12,13 @@ import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const router = useRouter();
+
+  const idempotencyKeyRef = useRef<string | null>(null);
+  if (idempotencyKeyRef.current === null) {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
+  }
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +183,9 @@ export default function CheckoutPage() {
       }
 
       const formData = new FormData();
+      if (idempotencyKeyRef.current) {
+        formData.append("idempotencyKey", idempotencyKeyRef.current);
+      }
       formData.append("name", name);
       formData.append("contact", contact);
       formData.append("address", courier === "Pickup" ? "" : address);
@@ -201,8 +211,21 @@ export default function CheckoutPage() {
         formData.append("uid", uid);
       }
 
+      // Attach the ID token so the server can verify the chat association.
+      // No Content-Type: the body is FormData.
+      const headers: HeadersInit = {};
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
+        } catch (tokenErr) {
+          console.error("Failed to get auth token", tokenErr);
+        }
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
+        headers,
         body: formData,
       });
 

@@ -1,34 +1,127 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminStorage } from "@/lib/firebase-admin";
+import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice } from "@/lib/product";
+import { createRateLimiter } from "@/lib/rate-limit";
 
 const MAX_QTY_PER_ITEM = 99;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const orderLimiter = createRateLimiter({ maxRequests: 10, windowMs: 10 * 60 * 1000 });
+
+function isAlreadyExists(error: any): boolean {
+  return (
+    error?.code === 6 ||
+    error?.code === "6" ||
+    error?.code === "already-exists" ||
+    error?.code === "ALREADY_EXISTS" ||
+    (typeof error?.message === "string" && error.message.includes("ALREADY_EXISTS"))
+  );
+}
 
 export async function POST(request: Request) {
   try {
+    const xForwardedFor = request.headers.get("x-forwarded-for");
+    let ip = xForwardedFor ? xForwardedFor.split(",")[0].trim() : null;
+    if (!ip) {
+      const xRealIp = request.headers.get("x-real-ip");
+      ip = xRealIp ? xRealIp.trim() : null;
+    }
+
+    if (ip) {
+      const { allowed, retryAfterSeconds } = orderLimiter(ip);
+      if (!allowed) {
+        return NextResponse.json(
+          { success: false, error: "Too many requests. Please try again later." },
+          {
+            status: 429,
+            headers: { "Retry-After": String(retryAfterSeconds) },
+          }
+        );
+      }
+    }
+
     const formData = await request.formData();
 
-    const name = formData.get("name") as string;
-    const contact = formData.get("contact") as string;
-    const address = formData.get("address") as string;
-    const courier = formData.get("courier") as string;
-    const region = formData.get("region") as string;
+    const rawIdempotencyKey = formData.get("idempotencyKey");
+    const idempotencyKey =
+      typeof rawIdempotencyKey === "string" && UUID_REGEX.test(rawIdempotencyKey)
+        ? rawIdempotencyKey
+        : null;
+
+    const nameRaw = (formData.get("name") as string | null) ?? "";
+    const contactRaw = (formData.get("contact") as string | null) ?? "";
+    const addressRaw = (formData.get("address") as string | null) ?? "";
+    const courier = (formData.get("courier") as string | null) ?? "";
+    const region = (formData.get("region") as string | null) ?? "";
     const city = formData.get("city") as string | null;
     const metroManilaAcknowledged = formData.get("metroManilaAcknowledged") as string | null;
-    const paymentMethodId = formData.get("paymentMethodId") as string;
-    const referenceNumber = formData.get("referenceNumber") as string;
+    const paymentMethodId = (formData.get("paymentMethodId") as string | null) ?? "";
+    const referenceNumberRaw = (formData.get("referenceNumber") as string | null) ?? "";
     const cartStr = formData.get("cart") as string;
     const paymentImage = formData.get("paymentImage") as File;
-    const uid = formData.get("uid") as string | null;
 
-    if (!name || !contact || !referenceNumber || !cartStr || !paymentImage) {
+    const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+    const contact = typeof contactRaw === "string" ? contactRaw.trim() : "";
+    const address = typeof addressRaw === "string" ? addressRaw.trim() : "";
+    const referenceNumber = typeof referenceNumberRaw === "string" ? referenceNumberRaw.trim() : "";
+
+    // Derive the chat uid from a verified ID token only. The client-supplied
+    // `uid` form field is NOT trusted for conversation writes.
+    let chatUid: string | null = null;
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      if (token) {
+        try {
+          const decodedToken = await adminAuth.verifyIdToken(token);
+          chatUid = decodedToken.uid;
+        } catch (authError) {
+          console.error("Failed to verify ID token for chat association:", authError);
+          chatUid = null;
+        }
+      }
+    }
+
+    if (!name || name.length > 100) {
+      return NextResponse.json({ success: false, error: "Full name must be between 1 and 100 characters" }, { status: 400 });
+    }
+
+    const contactDigits = contact.replace(/\D/g, "");
+    if (!contact || contact.length > 50 || contactDigits.length < 7 || contactDigits.length > 15) {
+      return NextResponse.json({ success: false, error: "Contact must have between 7 and 15 digits and be at most 50 characters" }, { status: 400 });
+    }
+
+    if (courier !== "Pickup" && (!address || address.length > 500)) {
+      return NextResponse.json({ success: false, error: "Address must be between 1 and 500 characters" }, { status: 400 });
+    }
+
+    if (referenceNumber.length < 4 || referenceNumber.length > 64) {
+      return NextResponse.json({ success: false, error: "Reference number must be between 4 and 64 characters" }, { status: 400 });
+    }
+
+    if (!cartStr || !paymentImage) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
-    if (courier !== "Pickup" && !address) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+
+    if (idempotencyKey) {
+      const existingSnap = await adminDb.collection("orders").doc(idempotencyKey).get();
+      if (existingSnap.exists) {
+        const existingData = existingSnap.data();
+        if (existingData?.customer?.contact === contact) {
+          return NextResponse.json({
+            success: true,
+            message: "Order placed successfully",
+            orderId: existingSnap.id,
+          });
+        }
+        return NextResponse.json(
+          { success: false, error: "Duplicate request" },
+          { status: 409 }
+        );
+      }
     }
 
     // NOTE: client-sent `total` and `shippingFee` are intentionally ignored.
@@ -67,9 +160,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Cart is empty" }, { status: 400 });
     }
 
-    // Validate each item shape and recompute pricing from Firestore
-    const items: any[] = [];
-    let subtotal = 0;
+    if (cart.length > 50) {
+      return NextResponse.json({ success: false, error: "Cart exceeds maximum items" }, { status: 400 });
+    }
+
+    // 1. Validate each item shape and sum ordered quantity per product id across all cart lines
+    const totalQtyByProduct: Record<string, number> = {};
 
     for (const raw of cart) {
       const id = raw?.id;
@@ -82,6 +178,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Quantity for product ${id} must be a positive integer no greater than ${MAX_QTY_PER_ITEM}` }, { status: 400 });
       }
 
+      totalQtyByProduct[id] = (totalQtyByProduct[id] || 0) + quantity;
+    }
+
+    // 2. Fetch unique product documents and verify availability & stock against summed quantity
+    const productMap: Record<string, any> = {};
+
+    for (const id of Object.keys(totalQtyByProduct)) {
+      const totalQty = totalQtyByProduct[id];
       const snap = await adminDb.collection("products").doc(id).get();
       if (!snap.exists) {
         return NextResponse.json({ success: false, error: `Product not found: ${id}` }, { status: 400 });
@@ -94,6 +198,21 @@ export async function POST(request: Request) {
       if (typeof product.stock === "number" && product.stock < 1) {
         return NextResponse.json({ success: false, error: `Product is out of stock: ${id}` }, { status: 400 });
       }
+      if (typeof product.stock === "number" && product.stock < totalQty) {
+        return NextResponse.json({ success: false, error: `Insufficient stock for product ${id}` }, { status: 400 });
+      }
+
+      productMap[id] = product;
+    }
+
+    // 3. Build order items and recompute subtotal from Firestore data
+    const items: any[] = [];
+    let subtotal = 0;
+
+    for (const raw of cart) {
+      const id = raw.id;
+      const quantity = raw.quantity;
+      const product = productMap[id];
 
       const chargedPrice = getChargedPrice(product);
       if (!Number.isFinite(chargedPrice) || chargedPrice <= 0) {
@@ -225,11 +344,44 @@ export async function POST(request: Request) {
       }
     }
 
-    const docRef = await adminDb.collection("orders").add(orderPayload);
-
-    if (uid) {
+    let docRef: any;
+    if (idempotencyKey) {
+      docRef = adminDb.collection("orders").doc(idempotencyKey);
       try {
-        const convRef = adminDb.collection("conversations").doc(uid);
+        await docRef.create(orderPayload);
+      } catch (createError: any) {
+        if (isAlreadyExists(createError)) {
+          try {
+            await file.delete();
+          } catch (deleteError) {
+            console.error("Failed to clean up duplicate payment image:", deleteError);
+          }
+
+          const existingSnap = await docRef.get();
+          if (existingSnap.exists) {
+            const existingData = existingSnap.data();
+            if (existingData?.customer?.contact === contact) {
+              return NextResponse.json({
+                success: true,
+                message: "Order placed successfully",
+                orderId: existingSnap.id,
+              });
+            }
+            return NextResponse.json(
+              { success: false, error: "Duplicate request" },
+              { status: 409 }
+            );
+          }
+        }
+        throw createError;
+      }
+    } else {
+      docRef = await adminDb.collection("orders").add(orderPayload);
+    }
+
+    if (chatUid) {
+      try {
+        const convRef = adminDb.collection("conversations").doc(chatUid);
         const messagesRef = convRef.collection("messages");
         
         const convSnap = await convRef.get();
@@ -238,7 +390,7 @@ export async function POST(request: Request) {
         
         if (!convSnap.exists) {
           batch.set(convRef, {
-            customerId: uid,
+            customerId: chatUid,
             customerName: name || "Guest",
             lastMessage: text,
             updatedAt: FieldValue.serverTimestamp(),
