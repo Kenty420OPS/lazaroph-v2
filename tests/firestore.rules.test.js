@@ -116,6 +116,25 @@ async function runTests() {
   await test("users doc role admin without claim does NOT grant admin access to conversations (deny)", getDocs(collection(nonAnonDb, 'conversations')), false);
   await test("non-admin authenticated user cannot write to products (deny)", setDoc(doc(nonAnonDb, 'products', 'prod1'), { name: 'test' }), false);
 
+  // Categories: public read, no client writes (not even admin)
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'categories', 'sneakers'), { name: 'Sneakers' });
+  });
+  await test("anonymous reads categories (allow)", getDoc(doc(guestDb, 'categories', 'sneakers')), true);
+  await test("admin client cannot write to categories (deny)", setDoc(doc(adminDb, 'categories', 'sneakers'), { name: 'Hacked' }), false);
+
+  // Orders: admin can read but not write from the client
+  await test("admin client cannot write to orders (deny)", setDoc(doc(adminDb, 'orders', 'ord_admin1'), { userId: 'admin1' }), false);
+  await test("admin client can read orders (allow)", getDoc(doc(adminDb, 'orders', 'ord2')), true);
+
+  // Products: admin can read and write from the client
+  await test("admin client can read products (allow)", getDoc(doc(adminDb, 'products', 'prod1')), true);
+  await test("admin client can write products (allow)", setDoc(doc(adminDb, 'products', 'prod_admin1'), { name: 'test' }), true);
+
+  // Catch-all: unlisted collections are denied to everyone, including admins
+  await test("admin client cannot read an unlisted collection (deny)", getDoc(doc(adminDb, 'randomcollection', 'doc1')), false);
+  await test("admin client cannot write to an unlisted collection (deny)", setDoc(doc(adminDb, 'randomcollection', 'doc1'), { name: 'test' }), false);
+
   console.log(`\nTests completed: ${passed} passed, ${failed} failed.`);
   await testEnv.cleanup();
 }
