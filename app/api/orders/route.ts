@@ -277,7 +277,7 @@ export async function POST(request: Request) {
   } catch (globalError: any) {
     console.error("POST /api/orders error:", globalError);
     return NextResponse.json(
-      { success: false, error: globalError.message || "Failed to process order" },
+      { success: false, error: "Failed to process order" },
       { status: 500 }
     );
   }

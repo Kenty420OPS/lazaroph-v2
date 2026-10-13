@@ -822,7 +822,7 @@ export async function DELETE(request: Request) {
   } catch (globalError: any) {
     console.error("DELETE /api/admin/products global error:", globalError);
     return NextResponse.json(
-      { success: false, error: globalError.message || "Failed to delete product" },
+      { success: false, error: "Failed to delete product" },
       { status: 500 }
     );
   }
