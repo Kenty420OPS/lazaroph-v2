@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { hasValidDiscount, getChargedPrice, PRODUCT_CATEGORIES } from "@/lib/product";
+import { CATEGORY_NAME_MAX } from "@/lib/categories";
 
 interface Product {
   id: string;
@@ -22,7 +23,8 @@ interface Product {
   stock?: number;
 }
 
-const CATEGORIES = ["All", ...PRODUCT_CATEGORIES];
+// Fallback used for the pills until (or unless) /api/categories loads.
+const FALLBACK_CATEGORIES: string[] = [...PRODUCT_CATEGORIES];
 
 export default function ShopPage() {
   return (
@@ -38,9 +40,10 @@ function ShopPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [categoryNames, setCategoryNames] = useState<string[]>(FALLBACK_CATEGORIES);
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     const param = searchParams.get("category");
-    return param && (PRODUCT_CATEGORIES as readonly string[]).includes(param) ? param : "All";
+    return param && param.length > 0 && param.length <= CATEGORY_NAME_MAX ? param : "All";
   });
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("default");
@@ -71,6 +74,50 @@ function ShopPageContent() {
       setLoading(false);
     }
   };
+
+  // Fetch the managed category list once on mount, through the API Route
+  // Handler only (AGENTS.md Rule #1). When it fails or comes back empty we
+  // keep the PRODUCT_CATEGORIES fallback so the pills are never empty.
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/categories");
+        const data = await res.json();
+        const names: string[] = Array.isArray(data?.categories)
+          ? data.categories
+              .map((c: any) => (typeof c?.name === "string" ? c.name.trim() : ""))
+              .filter((name: string) => name !== "")
+          : [];
+
+        if (!data?.success || names.length === 0) {
+          throw new Error("Empty category list");
+        }
+        if (cancelled) return;
+
+        setCategoryNames(names);
+        // A ?category= value that is not in the loaded list is reset to "All".
+        setSelectedCategory((current) =>
+          current === "All" || names.includes(current) ? current : "All"
+        );
+      } catch {
+        if (cancelled) return;
+
+        // Fallback pills stay; validate the ?category= param against them.
+        setSelectedCategory((current) =>
+          current === "All" || (PRODUCT_CATEGORIES as readonly string[]).includes(current)
+            ? current
+            : "All"
+        );
+      }
+    };
+
+    fetchCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     fetchProducts();
@@ -153,7 +200,7 @@ function ShopPageContent() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
           {/* Category Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
-            {CATEGORIES.map((cat) => (
+            {["All", ...categoryNames].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
