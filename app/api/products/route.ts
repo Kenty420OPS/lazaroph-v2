@@ -3,7 +3,7 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { isProductActive, normalizeImages } from "@/lib/product";
 
-export const revalidate = 60; // ISR: revalidate product list every 60 s
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
