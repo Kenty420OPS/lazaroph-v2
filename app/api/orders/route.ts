@@ -11,17 +11,22 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
-    const name = formData.get("name") as string;
-    const contact = formData.get("contact") as string;
-    const address = formData.get("address") as string;
-    const courier = formData.get("courier") as string;
-    const region = formData.get("region") as string;
+    const nameRaw = (formData.get("name") as string | null) ?? "";
+    const contactRaw = (formData.get("contact") as string | null) ?? "";
+    const addressRaw = (formData.get("address") as string | null) ?? "";
+    const courier = (formData.get("courier") as string | null) ?? "";
+    const region = (formData.get("region") as string | null) ?? "";
     const city = formData.get("city") as string | null;
     const metroManilaAcknowledged = formData.get("metroManilaAcknowledged") as string | null;
-    const paymentMethodId = formData.get("paymentMethodId") as string;
-    const referenceNumber = formData.get("referenceNumber") as string;
+    const paymentMethodId = (formData.get("paymentMethodId") as string | null) ?? "";
+    const referenceNumberRaw = (formData.get("referenceNumber") as string | null) ?? "";
     const cartStr = formData.get("cart") as string;
     const paymentImage = formData.get("paymentImage") as File;
+
+    const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+    const contact = typeof contactRaw === "string" ? contactRaw.trim() : "";
+    const address = typeof addressRaw === "string" ? addressRaw.trim() : "";
+    const referenceNumber = typeof referenceNumberRaw === "string" ? referenceNumberRaw.trim() : "";
 
     // Derive the chat uid from a verified ID token only. The client-supplied
     // `uid` form field is NOT trusted for conversation writes.
@@ -40,10 +45,24 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!name || !contact || !referenceNumber || !cartStr || !paymentImage) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    if (!name || name.length > 100) {
+      return NextResponse.json({ success: false, error: "Full name must be between 1 and 100 characters" }, { status: 400 });
     }
-    if (courier !== "Pickup" && !address) {
+
+    const contactDigits = contact.replace(/\D/g, "");
+    if (!contact || contact.length > 50 || contactDigits.length < 7 || contactDigits.length > 15) {
+      return NextResponse.json({ success: false, error: "Contact must have between 7 and 15 digits and be at most 50 characters" }, { status: 400 });
+    }
+
+    if (courier !== "Pickup" && (!address || address.length > 500)) {
+      return NextResponse.json({ success: false, error: "Address must be between 1 and 500 characters" }, { status: 400 });
+    }
+
+    if (referenceNumber.length < 4 || referenceNumber.length > 64) {
+      return NextResponse.json({ success: false, error: "Reference number must be between 4 and 64 characters" }, { status: 400 });
+    }
+
+    if (!cartStr || !paymentImage) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
     }
 
@@ -83,9 +102,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Cart is empty" }, { status: 400 });
     }
 
-    // Validate each item shape and recompute pricing from Firestore
-    const items: any[] = [];
-    let subtotal = 0;
+    if (cart.length > 50) {
+      return NextResponse.json({ success: false, error: "Cart exceeds maximum items" }, { status: 400 });
+    }
+
+    // 1. Validate each item shape and sum ordered quantity per product id across all cart lines
+    const totalQtyByProduct: Record<string, number> = {};
 
     for (const raw of cart) {
       const id = raw?.id;
@@ -98,6 +120,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Quantity for product ${id} must be a positive integer no greater than ${MAX_QTY_PER_ITEM}` }, { status: 400 });
       }
 
+      totalQtyByProduct[id] = (totalQtyByProduct[id] || 0) + quantity;
+    }
+
+    // 2. Fetch unique product documents and verify availability & stock against summed quantity
+    const productMap: Record<string, any> = {};
+
+    for (const id of Object.keys(totalQtyByProduct)) {
+      const totalQty = totalQtyByProduct[id];
       const snap = await adminDb.collection("products").doc(id).get();
       if (!snap.exists) {
         return NextResponse.json({ success: false, error: `Product not found: ${id}` }, { status: 400 });
@@ -110,6 +140,21 @@ export async function POST(request: Request) {
       if (typeof product.stock === "number" && product.stock < 1) {
         return NextResponse.json({ success: false, error: `Product is out of stock: ${id}` }, { status: 400 });
       }
+      if (typeof product.stock === "number" && product.stock < totalQty) {
+        return NextResponse.json({ success: false, error: `Insufficient stock for product ${id}` }, { status: 400 });
+      }
+
+      productMap[id] = product;
+    }
+
+    // 3. Build order items and recompute subtotal from Firestore data
+    const items: any[] = [];
+    let subtotal = 0;
+
+    for (const raw of cart) {
+      const id = raw.id;
+      const quantity = raw.quantity;
+      const product = productMap[id];
 
       const chargedPrice = getChargedPrice(product);
       if (!Number.isFinite(chargedPrice) || chargedPrice <= 0) {
