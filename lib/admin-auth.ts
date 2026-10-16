@@ -20,7 +20,10 @@ async function verifyRequest(
   forbiddenMessage: string
 ): Promise<VerifyResult> {
   try {
-    if (!adminAuth || !adminDb) return { isAdmin: false, error: "Firebase Admin is not initialized. Please check your .env.local Service Account credentials.", status: 401 };
+    if (!adminAuth || !adminDb) {
+      console.error("Firebase Admin is not initialized. Check the Service Account env vars.");
+      return { isAdmin: false, error: "Unauthorized", status: 401 };
+    }
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return { isAdmin: false, error: "Unauthorized: Missing or invalid Authorization header", status: 401 };
