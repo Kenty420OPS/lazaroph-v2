@@ -115,8 +115,8 @@ export default function AdminPage() {
             loadBrands();
             loadCategories();
           } else {
-            // Non-anonymous, but missing admin claim
-            await signOut(auth);
+            // Non-anonymous, but missing admin claim. Do NOT sign out here:
+            // this may be a customer session, and signing out would destroy it.
             setUser(null);
             setAuthLoading(false);
             setLoginError("Access denied: Admin claim missing.");
