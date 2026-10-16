@@ -20,6 +20,7 @@ export default function CheckoutPage() {
     }
   }
 
+  const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,26 +132,56 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
-    
-    if (!name || !contact || !referenceNumber || !paymentImage) {
-      setError("Please fill in all required fields and upload proof of payment.");
+
+    if (step === 1) {
+      // Step 1 validation
+      if (!name.trim()) {
+        setError("Please fill in all required fields.");
+        return;
+      }
+      if (!contact.trim()) {
+        setError("Please fill in all required fields.");
+        return;
+      }
+      if (!courier) {
+        setError("Please select a shipping method.");
+        return;
+      }
+      if (courier !== "Pickup" && !address.trim()) {
+        setError("Please fill in all required fields.");
+        return;
+      }
+      if (courier === "LBC" && !region) {
+        setError("Please select a region for LBC.");
+        return;
+      }
+      if (courier === "Lalamove") {
+        if (!deliveryCity) {
+          setError("Please select your delivery city and acknowledge the Lalamove delivery terms.");
+          return;
+        }
+        if (!riderFeeAck) {
+          setError("Please select your delivery city and acknowledge the Lalamove delivery terms.");
+          return;
+        }
+      }
+      setError(null);
+      setStep(2);
+      window.scrollTo({ top: 0 });
       return;
     }
 
-    if (!courier) {
-      setError("Please select a shipping method.");
-      return;
-    }
-    if (courier !== "Pickup" && !address) {
+    // Step 2 - full submit logic (unchanged)
+    if (!referenceNumber.trim()) {
       setError("Please fill in all required fields and upload proof of payment.");
       return;
     }
-    if (courier === "LBC" && !region) {
-      setError("Please select a region for LBC.");
+    if (!paymentImage) {
+      setError("Please fill in all required fields and upload proof of payment.");
       return;
     }
-    if (courier === "Lalamove" && (!deliveryCity || !riderFeeAck)) {
-      setError("Please select your delivery city and acknowledge the Lalamove delivery terms.");
+    if (!selectedMethod) {
+      setError("Please select a payment method.");
       return;
     }
 
@@ -161,7 +192,7 @@ export default function CheckoutPage() {
       // Compress image to ensure it's under Vercel's 4.5MB limit
       let processedImage = paymentImage;
       try {
-        if (paymentImage.type.startsWith('image/')) {
+        if (paymentImage.type.startsWith("image/")) {
           processedImage = await compressImage(paymentImage);
         }
       } catch (err) {
@@ -232,7 +263,9 @@ export default function CheckoutPage() {
       // Guard 1: surface HTTP-level errors before parsing body
       if (!res.ok) {
         let errMsg = "Checkout failed";
-        try { errMsg = (await res.json()).error || errMsg; } catch {}
+        try {
+          errMsg = (await res.json()).error || errMsg;
+        } catch {}
         throw new Error(errMsg);
       }
 
@@ -247,16 +280,25 @@ export default function CheckoutPage() {
           const stored = localStorage.getItem("recent_orders");
           // Guard 3: inner try/catch so corrupt storage never surfaces as a checkout error
           let orders: any[] = [];
-          try { orders = stored ? JSON.parse(stored) : []; } catch { orders = []; }
+          try {
+            orders = stored ? JSON.parse(stored) : [];
+          } catch {
+            orders = [];
+          }
           const orderSummary = {
             id: data.orderId,
             date: new Date().toISOString(),
             // Only store display-safe fields — NO contact, NO address
-            items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity, size: item.size })),
+            items: cart.map((item) => ({
+              name: item.name,
+              imageUrl: item.imageUrl,
+              quantity: item.quantity,
+              size: item.size,
+            })),
             total: finalTotal,
           };
           // Deduplicate and cap at 5 entries
-          orders = orders.filter((o: any) => (typeof o === 'string' ? o : o.id) !== data.orderId);
+          orders = orders.filter((o: any) => (typeof o === "string" ? o : o.id) !== data.orderId);
           orders = [orderSummary, ...orders].slice(0, 5);
           localStorage.setItem("recent_orders", JSON.stringify(orders));
         } catch (err) {
@@ -265,12 +307,9 @@ export default function CheckoutPage() {
       }
 
       clearCart();
-      const branchName =
-        courier === "Pickup" ? getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name ?? "" : "";
+      const branchName = courier === "Pickup" ? getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name ?? "" : "";
       const branchParam =
-        courier === "Pickup" && branchName
-          ? `&branchName=${encodeURIComponent(branchName)}`
-          : "";
+        courier === "Pickup" && branchName ? `&branchName=${encodeURIComponent(branchName)}` : "";
       router.push(
         `/checkout/success?orderId=${data.orderId}&courier=${encodeURIComponent(courier)}${branchParam}`
       );
@@ -299,34 +338,39 @@ export default function CheckoutPage() {
           &larr; Back to Cart
         </Link>
         <h1 className="text-3xl font-black tracking-tight mb-8">CHECKOUT</h1>
-        
+
         {error && (
           <div className="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-lg mb-8 text-sm">
             {error}
           </div>
         )}
 
-        <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800 mb-8">
+        <div className={`bg-neutral-900/60 p-6 rounded-xl border border-neutral-800 mb-8 ${step === 2 ? "hidden" : ""}`}>
           <h2 className="text-lg font-bold mb-4 border-b border-neutral-800 pb-2">Order Summary</h2>
           <div className="space-y-2 mb-4">
-            {cart.map(item => {
+            {cart.map((item) => {
               const size = item.size ?? "";
               const key = `${item.id}::${size}`;
               return (
                 <div key={key} className="flex justify-between text-sm text-neutral-400">
-                  <span>{item.quantity}x {item.name}{size ? ` (Size: ${size})` : ""}</span>
-                  <span>₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
+                  <span>
+                    {item.quantity}x {item.name}
+                    {size ? ` (Size: ${size})` : ""}
+                  </span>
+                  <span>
+                    ₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
               );
             })}
           </div>
-          
+
           <div className="border-t border-neutral-800 pt-4 space-y-2 text-sm">
             <div className="flex justify-between text-neutral-300">
               <span>Product Subtotal</span>
               <span>₱{cartTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
             </div>
-            
+
             {courier === "Pickup" ? (
               <div className="flex justify-between text-neutral-300">
                 <span>Store pickup</span>
@@ -338,15 +382,11 @@ export default function CheckoutPage() {
                 <span>₱{shippingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
               </div>
             ) : courier === "Lalamove" ? (
-              <div className="text-xs text-neutral-500 italic mt-1">
-                {SHIPPING_METHODS.Lalamove.note}
-              </div>
+              <div className="text-xs text-neutral-500 italic mt-1">{SHIPPING_METHODS.Lalamove.note}</div>
             ) : (
-              <div className="text-xs text-neutral-500 italic mt-1">
-                Select a shipping method
-              </div>
+              <div className="text-xs text-neutral-500 italic mt-1">Select a shipping method</div>
             )}
-            
+
             <div className="flex justify-between font-bold text-white text-lg pt-2 mt-2 border-t border-neutral-800">
               <span>Total</span>
               <span>₱{finalTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
@@ -354,48 +394,92 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} noValidate className="space-y-8">
           {/* Shipping Info */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${step === 2 ? "hidden" : ""}`}>
             <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Shipping Information</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Full Name *</label>
-                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" />
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                  Full Name *
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                />
               </div>
               <div>
-                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Contact Number *</label>
-                <input required type="tel" value={contact} onChange={e => setContact(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" />
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                  Contact Number *
+                </label>
+                <input
+                  required
+                  type="tel"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                />
               </div>
             </div>
             {courier === "Pickup" ? (
               <div className="bg-neutral-900/60 border border-neutral-800 p-4 rounded-lg text-sm">
                 <p className="font-bold text-white mb-2">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.name}</p>
-                <p className="text-neutral-400 whitespace-pre-line">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.address}</p>
+                <p className="text-neutral-400 whitespace-pre-line">
+                  {getBranch(DEFAULT_PICKUP_BRANCH_ID)?.address}
+                </p>
                 <p className="text-neutral-400 mt-2">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.hours}</p>
                 <p className="text-neutral-400">{getBranch(DEFAULT_PICKUP_BRANCH_ID)?.phone}</p>
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery Address *</label>
-                <textarea required value={address} onChange={e => setAddress(e.target.value)} rows={3} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"></textarea>
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                  Delivery Address *
+                </label>
+                <textarea
+                  required
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  rows={3}
+                  className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                ></textarea>
               </div>
             )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Preferred Courier *</label>
-                <select value={courier} onChange={e => setCourier(e.target.value as Courier)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
-                  <option value="" disabled>Select shipping method</option>
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                  Preferred Courier *
+                </label>
+                <select
+                  value={courier}
+                  onChange={(e) => setCourier(e.target.value as Courier)}
+                  className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                >
+                  <option value="" disabled>
+                    Select shipping method
+                  </option>
                   {(Object.keys(SHIPPING_METHODS) as Courier[]).map((c) => (
-                    <option key={c} value={c}>{SHIPPING_METHODS[c].label} ({SHIPPING_METHODS[c].description})</option>
+                    <option key={c} value={c}>
+                      {SHIPPING_METHODS[c].label} ({SHIPPING_METHODS[c].description})
+                    </option>
                   ))}
                 </select>
               </div>
               {courier === "LBC" && (
                 <div>
-                  <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Select your region *</label>
-                  <select value={region} onChange={e => setRegion(e.target.value as Region)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
-                    <option value="" disabled>Select region</option>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                    Select your region *
+                  </label>
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value as Region)}
+                    className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                  >
+                    <option value="" disabled>
+                      Select region
+                    </option>
                     <option value="Luzon">Luzon</option>
                     <option value="Visayas">Visayas</option>
                     <option value="Mindanao">Mindanao</option>
@@ -406,39 +490,76 @@ export default function CheckoutPage() {
             {courier === "Lalamove" && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Delivery City (Metro Manila only) *</label>
-                  <select required value={deliveryCity} onChange={e => setDeliveryCity(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none">
-                    <option value="" disabled>Select city</option>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                    Delivery City (Metro Manila only) *
+                  </label>
+                  <select
+                    required
+                    value={deliveryCity}
+                    onChange={(e) => setDeliveryCity(e.target.value)}
+                    className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                  >
+                    <option value="" disabled>
+                      Select city
+                    </option>
                     {METRO_MANILA_CITIES.map((city) => (
-                      <option key={city} value={city}>{city}</option>
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
                     ))}
                   </select>
                   <p className="text-xs text-neutral-500 italic mt-1">Outside Metro Manila? Choose LBC.</p>
                 </div>
                 <label className="flex items-start gap-3 text-sm text-neutral-300 cursor-pointer">
-                  <input required type="checkbox" checked={riderFeeAck} onChange={e => setRiderFeeAck(e.target.checked)} className="mt-1 accent-white" />
-                  <span>I understand Lalamove delivery is within Metro Manila only, and I will pay the rider&apos;s delivery fee directly.</span>
+                  <input
+                    required
+                    type="checkbox"
+                    checked={riderFeeAck}
+                    onChange={(e) => setRiderFeeAck(e.target.checked)}
+                    className="mt-1 accent-white"
+                  />
+                  <span>
+                    I understand Lalamove delivery is within Metro Manila only, and I will pay the rider&apos;s delivery
+                    fee directly.
+                  </span>
                 </label>
               </div>
             )}
           </div>
 
           {/* Payment Info */}
-          <div className="space-y-4">
+          <div className={`space-y-4 ${step === 1 ? "hidden" : ""}`}>
             <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Payment Details</h2>
-            
-            <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-lg flex flex-col sm:flex-row items-center gap-6 mb-6">
+            <div className="text-sm text-neutral-300 mb-4">
+              <span className="font-bold">Total to pay:</span>{" "}
+              <span className="font-bold text-white">
+                ₱{finalTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </span>
+              {shippingFee > 0 ? <span className="text-neutral-400 ml-1">(incl. shipping fee)</span> : null}
+            </div>
+
+            <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-lg flex flex-col gap-6 mb-6">
               {methodsLoading ? (
                 <p className="text-sm text-neutral-400">Loading payment methods...</p>
               ) : methodsUnavailable || !selectedMethod ? (
                 <p className="text-sm text-red-400 font-bold">Payment methods are unavailable. Please contact the store.</p>
               ) : (
                 <>
-                  <div className="w-32 h-32 bg-black border border-neutral-700 flex items-center justify-center rounded-lg flex-shrink-0">
+                  <div className="w-full max-w-xs mx-auto aspect-square">
                     {selectedMethod.qrUrl ? (
-                      <img src={selectedMethod.qrUrl} alt={`${selectedMethod.name} QR Code`} className="w-full h-full object-contain rounded-lg" />
+                      <img
+                        src={selectedMethod.qrUrl}
+                        alt={`${selectedMethod.name} QR Code`}
+                        className="w-full h-full object-contain rounded-lg bg-black border border-neutral-700"
+                      />
                     ) : (
-                      <span className="text-xs text-neutral-500 text-center">No QR<br/>available</span>
+                      <div className="w-full h-full flex items-center justify-center bg-black border border-neutral-700 rounded-lg">
+                        <span className="text-xs text-neutral-500 text-center">
+                          No QR
+                          <br />
+                          available
+                        </span>
+                      </div>
                     )}
                   </div>
                   <div className="text-sm text-neutral-300">
@@ -456,7 +577,9 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Payment Method *</label>
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                  Payment Method *
+                </label>
                 <select
                   value={paymentMethodId}
                   onChange={(e) => {
@@ -467,29 +590,71 @@ export default function CheckoutPage() {
                   className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
                 >
                   {paymentMethods.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Reference Number *</label>
-                <input required type="text" value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" placeholder="e.g. 000123456789" />
+                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                  Reference Number *
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                  className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none"
+                  placeholder="e.g. 000123456789"
+                />
               </div>
             </div>
-            
+
             <div>
-              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Proof of Payment (Screenshot) *</label>
-              <input required type="file" accept="image/*" onChange={e => setPaymentImage(e.target.files?.[0] || null)} className="w-full bg-black border border-neutral-800 rounded-lg p-2 text-sm focus:border-white focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white file:text-black hover:file:bg-neutral-200" />
+              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">
+                Proof of Payment (Screenshot) *
+              </label>
+              <input
+                required
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPaymentImage(e.target.files?.[0] || null)}
+                className="w-full bg-black border border-neutral-800 rounded-lg p-2 text-sm focus:border-white focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white file:text-black hover:file:bg-neutral-200"
+              />
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || methodsLoading || methodsUnavailable || !selectedMethod}
-            className="w-full py-4 rounded-lg bg-white text-black font-black hover:bg-neutral-200 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed mt-8"
-          >
-            {loading ? "Processing Order..." : "Submit Order"}
-          </button>
+          {step === 1 && (
+            <button
+              type="submit"
+              className="w-full py-4 rounded-lg bg-white text-black font-black hover:bg-neutral-200 transition-colors uppercase tracking-widest mt-8"
+            >
+              Proceed to Payment Details
+            </button>
+          )}
+
+          {step === 2 && (
+            <div className="flex gap-4 mt-8">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1);
+                  window.scrollTo({ top: 0 });
+                }}
+                className="flex-1 py-4 rounded-lg bg-neutral-800 text-white font-black hover:bg-neutral-700 transition-colors uppercase tracking-widest"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={loading || methodsLoading || methodsUnavailable || !selectedMethod}
+                className="flex-1 py-4 rounded-lg bg-white text-black font-black hover:bg-neutral-200 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Processing Order..." : "Submit Order"}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
