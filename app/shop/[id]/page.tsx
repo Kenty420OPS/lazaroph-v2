@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
-import { hasValidDiscount, getChargedPrice } from "@/lib/product";
+import { hasValidDiscount, getChargedPrice, SIZE_SYSTEM_NAMES } from "@/lib/product";
 
 interface Product {
   id: string;
@@ -21,6 +21,8 @@ interface Product {
   careInstructions?: string;
   imageUrl?: string;
   images?: { imageUrl: string; isMain?: boolean }[];
+  sizeSystem?: string;
+  sizes?: Array<{ label: string; active: boolean; stock: number }>;
 }
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
@@ -29,6 +31,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState<boolean>(true);
   const [notFound, setNotFound] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
+  const [selectedSize, setSelectedSize] = useState<string>("");
 
   // Fetch the product exclusively through the API Route Handler
   // (/api/products/[id]). AGENTS.md Rule #1: no direct Firestore calls in client components.
@@ -67,6 +70,15 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
   const galleryImages = product?.images?.slice(0, 4) ?? [];
   const mainImage = selectedImage || product?.imageUrl || galleryImages[0]?.imageUrl || "";
+
+  // Size selection (only for sized products; legacy products have no sizeSystem).
+  const isSized = !!product?.sizeSystem;
+  const activeSizes = isSized ? (product?.sizes ?? []).filter((size) => size.active) : [];
+  const hasSelectableSize = activeSizes.some((size) => size.stock > 0);
+  const selectedSizeStock = activeSizes.find((size) => size.label === selectedSize)?.stock ?? 0;
+  const sizeSystemName = product?.sizeSystem
+    ? SIZE_SYSTEM_NAMES[product.sizeSystem as keyof typeof SIZE_SYSTEM_NAMES] ?? product.sizeSystem
+    : "";
 
   return (
     <div className="min-h-screen bg-black text-neutral-100 flex flex-col font-sans selection:bg-white selection:text-black">
@@ -250,19 +262,87 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 )}
               </div>
 
-              <button
-                className="mt-6 w-full sm:w-auto px-6 py-3 rounded-lg bg-white hover:bg-neutral-200 text-black text-sm font-bold transition-colors shadow-sm"
-                onClick={() => {
-                  addToCart({
-                    id: product.id,
-                    name: product.name || "Untitled Product",
-                    price: getChargedPrice(product),
-                    imageUrl: product.imageUrl || galleryImages[0]?.imageUrl || "",
-                  });
-                }}
-              >
-                Add to Cart
-              </button>
+              {isSized && (
+                <div className="mt-6 pt-4 border-t border-neutral-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-widest text-neutral-300">
+                      Select size
+                    </span>
+                    {sizeSystemName && (
+                      <span className="text-xs text-neutral-500">{sizeSystemName}</span>
+                    )}
+                  </div>
+
+                  {hasSelectableSize ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+                      {activeSizes.map((size) => {
+                        const outOfStock = size.stock <= 0;
+                        const selected = size.label === selectedSize;
+                        return (
+                          <button
+                            key={size.label}
+                            type="button"
+                            disabled={outOfStock}
+                            onClick={() => setSelectedSize(size.label)}
+                            className={`min-h-11 text-sm font-semibold text-center rounded-lg border transition-colors ${
+                              selected
+                                ? "bg-white text-black border-white"
+                                : outOfStock
+                                ? "border-neutral-800 text-neutral-600 line-through cursor-not-allowed"
+                                : "border-neutral-700 text-neutral-200 hover:border-neutral-500 hover:text-white"
+                            }`}
+                          >
+                            {size.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-semibold text-red-500">Sold out</p>
+                  )}
+
+                  {selectedSizeStock > 0 && selectedSizeStock <= 5 && (
+                    <p className="mt-2 text-sm text-neutral-400">Only {selectedSizeStock} left</p>
+                  )}
+                </div>
+              )}
+
+              {isSized ? (
+                <>
+                  {hasSelectableSize && !selectedSize && (
+                    <p className="mt-4 text-sm text-neutral-500">Please select a size</p>
+                  )}
+                  <button
+                    className="mt-6 w-full sm:w-auto px-6 py-3 rounded-lg bg-white text-black text-sm font-bold transition-colors shadow-sm enabled:hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={!selectedSize || selectedSizeStock <= 0}
+                    onClick={() => {
+                      addToCart({
+                        id: product.id,
+                        name: product.name || "Untitled Product",
+                        price: getChargedPrice(product),
+                        imageUrl: product.imageUrl || galleryImages[0]?.imageUrl || "",
+                        size: selectedSize,
+                      });
+                    }}
+                  >
+                    {hasSelectableSize ? "Add to Cart" : "Sold out"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="mt-6 w-full sm:w-auto px-6 py-3 rounded-lg bg-white hover:bg-neutral-200 text-black text-sm font-bold transition-colors shadow-sm"
+                  onClick={() => {
+                    addToCart({
+                      id: product.id,
+                      name: product.name || "Untitled Product",
+                      price: getChargedPrice(product),
+                      imageUrl: product.imageUrl || galleryImages[0]?.imageUrl || "",
+                    });
+                  }}
+                >
+                  Add to Cart
+                </button>
+              )}
 
               {/* Description */}
               {product.description && (

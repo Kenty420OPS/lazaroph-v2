@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { isProductActive, normalizeImages, getCoverUrl } from "@/lib/product";
+import {
+  isProductActive,
+  normalizeImages,
+  getCoverUrl,
+  hasSizeSystem,
+  type ProductSize,
+} from "@/lib/product";
 
 export const revalidate = 60; // ISR: revalidate a product every 60 s
 
@@ -36,6 +42,18 @@ export async function GET(request: Request, { params }: { params: { id: string }
       careInstructions: data?.careInstructions ?? "",
       imageUrl: getCoverUrl(data),
       images: normalizeImages(data),
+      // Sized products also expose which sizes are selectable and their stock.
+      // Products without a valid size system keep the exact same shape as before.
+      ...(hasSizeSystem(data)
+        ? {
+            sizeSystem: data?.sizeSystem ?? "",
+            sizes: (data?.sizes ?? []).map((size: ProductSize) => ({
+              label: size.label,
+              active: size.active,
+              stock: size.stock,
+            })),
+          }
+        : {}),
     };
 
     return NextResponse.json({ success: true, product });

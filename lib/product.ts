@@ -209,3 +209,125 @@ export function cleanText(input: unknown, max: number): string {
 export function getChargedPrice(doc: any): number {
   return getEffectivePrice(Number(doc?.price), doc?.discountPrice)
 }
+
+// --- Optional product size system -----------------------------------------
+// A product may carry a size system with a per-size stock list. A product with
+// no sizeSystem is a legacy product that keeps the single numeric stock field.
+
+// Builds evenly spaced shoe labels: "US 6", "US 6.5", ... "US 14".
+function buildShoeLabels(start: number, end: number): string[] {
+  const labels: string[] = []
+  for (let value = start; value <= end + 1e-9; value += 0.5) {
+    labels.push(`US ${Number.isInteger(value) ? value : value.toFixed(1)}`)
+  }
+  return labels
+}
+
+// Allowed size labels per size system.
+export const SIZE_SYSTEMS = {
+  "us-mens-shoe": buildShoeLabels(6, 14),
+  "us-womens-shoe": buildShoeLabels(5, 12),
+  apparel: ["XS", "S", "M", "L", "XL", "XXL"],
+}
+
+export type SizeSystem = keyof typeof SIZE_SYSTEMS
+
+// Human-readable name for each size system.
+export const SIZE_SYSTEM_NAMES: Record<SizeSystem, string> = {
+  "us-mens-shoe": "US Men's Shoe",
+  "us-womens-shoe": "US Women's Shoe",
+  apparel: "Apparel",
+}
+
+// One size option on a sized product: the label, whether customers can pick it
+// and the stock available for that label.
+export type ProductSize = { label: string; active: boolean; stock: number }
+
+// Validates and normalizes a product's sizes for a given size system. Returns
+// the sizes sorted in the system's own order on success, or a clear error.
+// Defaults: stock 10 when missing, active true when missing.
+export function normalizeSizes(
+  sizeSystem: unknown,
+  rawSizes: unknown
+): { ok: true; sizes: ProductSize[] } | { ok: false; error: string } {
+  if (
+    typeof sizeSystem !== "string" ||
+    !Object.prototype.hasOwnProperty.call(SIZE_SYSTEMS, sizeSystem)
+  ) {
+    return { ok: false, error: "Invalid size system" }
+  }
+
+  const labels: string[] = SIZE_SYSTEMS[sizeSystem as SizeSystem]
+
+  if (!Array.isArray(rawSizes)) {
+    return { ok: false, error: "Sizes must be an array" }
+  }
+
+  const seen = new Set<string>()
+  const sizes: ProductSize[] = []
+
+  for (const raw of rawSizes) {
+    if (!raw || typeof raw !== "object") {
+      return { ok: false, error: "Each size must be an object" }
+    }
+
+    const rawLabel = (raw as any).label
+    if (typeof rawLabel !== "string") {
+      return { ok: false, error: "Each size needs a label" }
+    }
+    const label = rawLabel.trim()
+    if (!labels.includes(label)) {
+      return { ok: false, error: `Invalid size label: ${label}` }
+    }
+    if (seen.has(label)) {
+      return { ok: false, error: `Duplicate size label: ${label}` }
+    }
+    seen.add(label)
+
+    const rawStock = (raw as any).stock
+    const stock = rawStock === undefined || rawStock === null ? 10 : Number(rawStock)
+    if (!Number.isInteger(stock) || stock < 0 || stock > 9999) {
+      return { ok: false, error: `Invalid stock for size ${label}` }
+    }
+
+    const rawActive = (raw as any).active
+    let active = true
+    if (rawActive !== undefined && rawActive !== null) {
+      if (typeof rawActive !== "boolean") {
+        return { ok: false, error: `Invalid active flag for size ${label}` }
+      }
+      active = rawActive
+    }
+
+    sizes.push({ label, active, stock })
+  }
+
+  // Sort into the system's own order (the raw input order is not trusted).
+  sizes.sort((a, b) => labels.indexOf(a.label) - labels.indexOf(b.label))
+
+  return { ok: true, sizes }
+}
+
+// True when a product doc uses a valid size system and carries a sizes array.
+export function hasSizeSystem(product: any): boolean {
+  return (
+    !!product &&
+    typeof product.sizeSystem === "string" &&
+    Object.prototype.hasOwnProperty.call(SIZE_SYSTEMS, product.sizeSystem) &&
+    Array.isArray(product.sizes)
+  )
+}
+
+// Total stock for a product: the sum of the active sizes' stock for a sized
+// product, otherwise the legacy single numeric stock field.
+export function getTotalStock(product: any): number {
+  if (hasSizeSystem(product)) {
+    return product.sizes.reduce((sum: number, size: any) => {
+      if (!size || size.active === false) return sum
+      const stock = Number(size.stock)
+      return sum + (Number.isFinite(stock) ? stock : 0)
+    }, 0)
+  }
+
+  return Number(product?.stock) || 0
+}

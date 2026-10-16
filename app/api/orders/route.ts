@@ -3,7 +3,7 @@ import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
-import { isProductActive, getChargedPrice } from "@/lib/product";
+import { isProductActive, getChargedPrice, hasSizeSystem, getTotalStock } from "@/lib/product";
 import { createRateLimiter } from "@/lib/rate-limit";
 
 const MAX_QTY_PER_ITEM = 99;
@@ -11,13 +11,25 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 const orderLimiter = createRateLimiter({ maxRequests: 10, windowMs: 10 * 60 * 1000 });
 
-function isAlreadyExists(error: any): boolean {
+// Business failure inside the order transaction. Kept small and typed so the
+// catch around runTransaction can map it back to a JSON response.
+class OrderError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "OrderError";
+    this.status = status;
+    Object.setPrototypeOf(this, OrderError.prototype);
+  }
+}
+
+function isOrderError(error: any): error is OrderError {
   return (
-    error?.code === 6 ||
-    error?.code === "6" ||
-    error?.code === "already-exists" ||
-    error?.code === "ALREADY_EXISTS" ||
-    (typeof error?.message === "string" && error.message.includes("ALREADY_EXISTS"))
+    error instanceof OrderError ||
+    (error?.name === "OrderError" &&
+      typeof error?.status === "number" &&
+      typeof error?.message === "string")
   );
 }
 
@@ -164,12 +176,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Cart exceeds maximum items" }, { status: 400 });
     }
 
-    // 1. Validate each item shape and sum ordered quantity per product id across all cart lines
+    // 1. Validate each item shape and sum ordered quantity per composite key
+    // (productId + "::" + size) across all cart lines. A legacy line without a
+    // size keeps the empty size.
+    const lines: { id: string; quantity: number; size: string }[] = [];
+    const totalQtyByKey: Record<string, number> = {};
     const totalQtyByProduct: Record<string, number> = {};
 
     for (const raw of cart) {
       const id = raw?.id;
       const quantity = raw?.quantity;
+      const size = typeof raw?.size === "string" ? raw.size.trim() : "";
 
       if (typeof id !== "string" || !id) {
         return NextResponse.json({ success: false, error: "Each cart item must have a product id" }, { status: 400 });
@@ -178,68 +195,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: `Quantity for product ${id} must be a positive integer no greater than ${MAX_QTY_PER_ITEM}` }, { status: 400 });
       }
 
+      lines.push({ id, quantity, size });
+      const key = `${id}::${size}`;
+      totalQtyByKey[key] = (totalQtyByKey[key] || 0) + quantity;
       totalQtyByProduct[id] = (totalQtyByProduct[id] || 0) + quantity;
     }
 
-    // 2. Fetch unique product documents and verify availability & stock against summed quantity
-    const productMap: Record<string, any> = {};
-
-    for (const id of Object.keys(totalQtyByProduct)) {
-      const totalQty = totalQtyByProduct[id];
-      const snap = await adminDb.collection("products").doc(id).get();
-      if (!snap.exists) {
-        return NextResponse.json({ success: false, error: `Product not found: ${id}` }, { status: 400 });
-      }
-
-      const product: any = snap.data();
-      if (!isProductActive(product)) {
-        return NextResponse.json({ success: false, error: `Product is not available: ${id}` }, { status: 400 });
-      }
-      if (typeof product.stock === "number" && product.stock < 1) {
-        return NextResponse.json({ success: false, error: `Product is out of stock: ${id}` }, { status: 400 });
-      }
-      if (typeof product.stock === "number" && product.stock < totalQty) {
-        return NextResponse.json({ success: false, error: `Insufficient stock for product ${id}` }, { status: 400 });
-      }
-
-      productMap[id] = product;
-    }
-
-    // 3. Build order items and recompute subtotal from Firestore data
-    const items: any[] = [];
-    let subtotal = 0;
-
-    for (const raw of cart) {
-      const id = raw.id;
-      const quantity = raw.quantity;
-      const product = productMap[id];
-
-      const chargedPrice = getChargedPrice(product);
-      if (!Number.isFinite(chargedPrice) || chargedPrice <= 0) {
-        return NextResponse.json({ success: false, error: `Product is not available: ${id}` }, { status: 400 });
-      }
-
-      const item: any = {
-        id,
-        name: product.name || product.title || "",
-        price: chargedPrice,
-        imageUrl: product.imageUrl || product.mainImageUrl || "",
-        quantity,
-      };
-      const originalPrice = Number(product.price);
-      if (Number.isFinite(originalPrice) && chargedPrice < originalPrice) {
-        item.originalPrice = originalPrice;
-      }
-      if (typeof product.sku === "string" && product.sku !== "") {
-        item.sku = product.sku;
-      }
-
-      items.push(item);
-      subtotal += chargedPrice * quantity;
-    }
+    const productIds = Array.from(new Set(lines.map((line) => line.id)));
+    const productRefs = productIds.map((productId) => adminDb.collection("products").doc(productId));
 
     const shippingFee = getShippingFee(courier, region);
-    const total = subtotal + shippingFee;
 
     // Validate the selected payment method BEFORE validating/uploading the proof image
     let paymentMethodDoc: any = null;
@@ -294,8 +259,9 @@ export async function POST(request: Request) {
     
     const paymentImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media`;
 
-    // 3. Save order to Firestore
-    const orderPayload: any = {
+    // 3. Build the order document. items/subtotal/total are filled in from the
+    // transaction snapshots below.
+    const baseOrderPayload: any = {
       customer: {
         name,
         contact,
@@ -316,68 +282,209 @@ export async function POST(request: Request) {
         proofImageUrl: paymentImageUrl,
         proofImagePath: storagePath, // Stored for generating secure signed URLs later
       },
-      items,
-      subtotal,
-      total,
       status: "pending_payment",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     if (courier === "LBC" && region) {
-      orderPayload.shipping.region = region;
+      baseOrderPayload.shipping.region = region;
     }
 
     if (courier === "Lalamove") {
-      orderPayload.shipping.city = typeof city === "string" ? city.trim() : "";
-      orderPayload.shipping.metroManilaAcknowledged = true;
+      baseOrderPayload.shipping.city = typeof city === "string" ? city.trim() : "";
+      baseOrderPayload.shipping.metroManilaAcknowledged = true;
     }
 
     if (courier === "Pickup") {
       const branch = getBranch(DEFAULT_PICKUP_BRANCH_ID);
       if (branch) {
-        orderPayload.shipping.branchId = branch.id;
-        orderPayload.shipping.branchName = branch.name;
-        orderPayload.shipping.branchAddress = branch.address;
+        baseOrderPayload.shipping.branchId = branch.id;
+        baseOrderPayload.shipping.branchName = branch.name;
+        baseOrderPayload.shipping.branchAddress = branch.address;
       } else {
-        orderPayload.shipping.branchId = DEFAULT_PICKUP_BRANCH_ID;
+        baseOrderPayload.shipping.branchId = DEFAULT_PICKUP_BRANCH_ID;
       }
     }
 
-    let docRef: any;
-    if (idempotencyKey) {
-      docRef = adminDb.collection("orders").doc(idempotencyKey);
-      try {
-        await docRef.create(orderPayload);
-      } catch (createError: any) {
-        if (isAlreadyExists(createError)) {
-          try {
-            await file.delete();
-          } catch (deleteError) {
-            console.error("Failed to clean up duplicate payment image:", deleteError);
+    // 4. Stock check, stock decrement and order create happen in ONE Firestore
+    // transaction. The idempotency key is the order document id, so a retry
+    // collides and is detected on the first read. The callback may run more
+    // than once, so it must stay side-effect free: no Storage, network or chat
+    // calls inside, and no mutation of the outer scope.
+    const orderRef = idempotencyKey
+      ? adminDb.collection("orders").doc(idempotencyKey)
+      : adminDb.collection("orders").doc();
+
+    let txResult: { created: boolean; orderId: string };
+    try {
+      txResult = await adminDb.runTransaction(async (t) => {
+        // 4a. Idempotency read first: an existing order writes nothing (no
+        // validation, no decrement, no create).
+        const existingOrderSnap = await t.get(orderRef);
+        if (existingOrderSnap.exists) {
+          return { created: false, orderId: existingOrderSnap.id };
+        }
+
+        // 4b. Read every product with a single getAll. All reads happen before
+        // any write.
+        const productSnaps = await t.getAll(...productRefs);
+        const productMap: Record<string, any> = {};
+        productSnaps.forEach((snap, index) => {
+          productMap[productIds[index]] = snap.exists ? snap.data() : null;
+        });
+
+        // 4c. Validate the cart against these snapshots.
+        for (const productId of productIds) {
+          const product: any = productMap[productId];
+          if (!product) {
+            throw new OrderError(400, `Product not found: ${productId}`);
+          }
+          if (!isProductActive(product)) {
+            throw new OrderError(400, `Product is not available: ${productId}`);
           }
 
-          const existingSnap = await docRef.get();
-          if (existingSnap.exists) {
-            const existingData = existingSnap.data();
-            if (existingData?.customer?.contact === contact) {
-              return NextResponse.json({
-                success: true,
-                message: "Order placed successfully",
-                orderId: existingSnap.id,
-              });
+          if (hasSizeSystem(product)) {
+            const productName = String(product.name || product.title || productId);
+            for (const line of lines) {
+              if (line.id !== productId) continue;
+              if (!line.size) {
+                throw new OrderError(400, `Size is required for ${productName}`);
+              }
+              const sizeEntry = product.sizes.find((size: any) => size && size.label === line.size);
+              if (!sizeEntry || sizeEntry.active === false) {
+                throw new OrderError(400, `Size not available for ${productName} (${line.size})`);
+              }
+              const availableStock =
+                typeof sizeEntry.stock === "number" && Number.isFinite(sizeEntry.stock) ? sizeEntry.stock : 0;
+              const requiredQty = totalQtyByKey[`${productId}::${line.size}`] || 0;
+              if (availableStock < requiredQty) {
+                throw new OrderError(400, `Insufficient stock for ${productName} (${line.size})`);
+              }
             }
-            return NextResponse.json(
-              { success: false, error: "Duplicate request" },
-              { status: 409 }
-            );
+          } else {
+            // Legacy products keep the single numeric stock field: a product
+            // with no numeric stock field passes, and a carried size is ignored.
+            const totalQty = totalQtyByProduct[productId];
+            if (typeof product.stock === "number" && product.stock < 1) {
+              throw new OrderError(400, `Product is out of stock: ${productId}`);
+            }
+            if (typeof product.stock === "number" && product.stock < totalQty) {
+              throw new OrderError(400, `Insufficient stock for product ${productId}`);
+            }
           }
         }
-        throw createError;
+
+        // 4d. Build order items and totals from these snapshots.
+        const items: any[] = [];
+        let subtotal = 0;
+
+        for (const line of lines) {
+          const product = productMap[line.id];
+
+          const chargedPrice = getChargedPrice(product);
+          if (!Number.isFinite(chargedPrice) || chargedPrice <= 0) {
+            throw new OrderError(400, `Product is not available: ${line.id}`);
+          }
+
+          const item: any = {
+            id: line.id,
+            name: product.name || product.title || "",
+            price: chargedPrice,
+            imageUrl: product.imageUrl || product.mainImageUrl || "",
+            quantity: line.quantity,
+          };
+          const originalPrice = Number(product.price);
+          if (Number.isFinite(originalPrice) && chargedPrice < originalPrice) {
+            item.originalPrice = originalPrice;
+          }
+          if (typeof product.sku === "string" && product.sku !== "") {
+            item.sku = product.sku;
+          }
+          if (hasSizeSystem(product)) {
+            item.size = line.size;
+          }
+
+          items.push(item);
+          subtotal += chargedPrice * line.quantity;
+        }
+
+        const total = subtotal + shippingFee;
+
+        // 4e. Writes: create the order first (same document id as before, so a
+        // retry collides), then decrement stock per product.
+        t.create(orderRef, { ...baseOrderPayload, items, subtotal, total, stockDecremented: true });
+
+        for (let index = 0; index < productIds.length; index++) {
+          const productId = productIds[index];
+          const product = productMap[productId];
+          const updatedAt = new Date().toISOString();
+
+          if (hasSizeSystem(product)) {
+            // Rewrite the whole sizes array (never dotted field paths) and
+            // reduce each affected size by its summed quantity.
+            const newSizes = product.sizes.map((sizeEntry: any) => {
+              if (!sizeEntry || typeof sizeEntry.label !== "string") return sizeEntry;
+              const qty = totalQtyByKey[`${productId}::${sizeEntry.label}`];
+              if (!qty) return sizeEntry;
+              const currentStock =
+                typeof sizeEntry.stock === "number" && Number.isFinite(sizeEntry.stock) ? sizeEntry.stock : 0;
+              return { ...sizeEntry, stock: currentStock - qty };
+            });
+            t.update(productRefs[index], {
+              sizes: newSizes,
+              stock: getTotalStock({ ...product, sizes: newSizes }),
+              updatedAt,
+            });
+          } else if (typeof product.stock === "number") {
+            t.update(productRefs[index], {
+              stock: product.stock - totalQtyByProduct[productId],
+              updatedAt,
+            });
+          }
+        }
+
+        return { created: true, orderId: orderRef.id };
+      });
+    } catch (txError) {
+      try {
+        await file.delete();
+      } catch (deleteError) {
+        console.error("Failed to clean up payment image:", deleteError);
       }
-    } else {
-      docRef = await adminDb.collection("orders").add(orderPayload);
+      if (isOrderError(txError)) {
+        return NextResponse.json({ success: false, error: txError.message }, { status: txError.status });
+      }
+      throw txError;
     }
+
+    if (!txResult.created) {
+      // Idempotent retry: the order already exists, so the freshly uploaded
+      // proof image is discarded and the stored order is returned.
+      try {
+        await file.delete();
+      } catch (deleteError) {
+        console.error("Failed to clean up duplicate payment image:", deleteError);
+      }
+
+      const existingSnap = await adminDb.collection("orders").doc(txResult.orderId).get();
+      if (existingSnap.exists) {
+        const existingData = existingSnap.data();
+        if (existingData?.customer?.contact === contact) {
+          return NextResponse.json({
+            success: true,
+            message: "Order placed successfully",
+            orderId: existingSnap.id,
+          });
+        }
+      }
+      return NextResponse.json(
+        { success: false, error: "Duplicate request" },
+        { status: 409 }
+      );
+    }
+
+    const orderId = txResult.orderId;
 
     if (chatUid) {
       try {
@@ -386,7 +493,7 @@ export async function POST(request: Request) {
         
         const convSnap = await convRef.get();
         const batch = adminDb.batch();
-        const text = `Thank you for your order! Your Order ID is: ${docRef.id}. You can use this to track your order.`;
+        const text = `Thank you for your order! Your Order ID is: ${orderId}. You can use this to track your order.`;
         
         if (!convSnap.exists) {
           batch.set(convRef, {
@@ -424,7 +531,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Order placed successfully",
-      orderId: docRef.id,
+      orderId,
     });
   } catch (globalError: any) {
     console.error("POST /api/orders error:", globalError);

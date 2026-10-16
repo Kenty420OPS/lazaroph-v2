@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 import { brandSlug } from "@/lib/brands";
@@ -19,7 +20,11 @@ import {
   parseKeyFeatures,
   cleanText,
   generateSkuCandidate,
+  normalizeSizes,
+  getTotalStock,
+  hasSizeSystem,
   type ProductImage,
+  type ProductSize,
 } from "@/lib/product";
 
 type ValidatedUpload = { buffer: Buffer; contentType: string; ext: string };
@@ -87,6 +92,25 @@ function hasOwn(obj: any, key: string): boolean {
 function toNumber(value: unknown, fallback: number): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+// Parses a raw "sizes" value: multipart sends a JSON string, JSON bodies may
+// send the array directly. Absent values stay undefined so normalizeSizes
+// reports the error.
+function parseSizesPayload(
+  raw: unknown
+): { ok: true; value: unknown } | { ok: false; error: string } {
+  if (raw === undefined || raw === null || raw === "") {
+    return { ok: true, value: undefined };
+  }
+  if (typeof raw === "string") {
+    try {
+      return { ok: true, value: JSON.parse(raw) };
+    } catch {
+      return { ok: false, error: "Invalid sizes" };
+    }
+  }
+  return { ok: true, value: raw };
 }
 
 // Builds the stored ProductImage[] shape; isMain is true only on index 0.
@@ -253,6 +277,8 @@ export async function POST(request: Request) {
     let materials = "";
     let careInstructions = "";
     let newFiles: File[] = [];
+    let sizeSystemRaw: unknown = undefined;
+    let sizesRaw: unknown = undefined;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -268,6 +294,9 @@ export async function POST(request: Request) {
       keyFeaturesRaw = formData.get("keyFeatures");
       materials = (formData.get("materials") as string) || "";
       careInstructions = (formData.get("careInstructions") as string) || "";
+
+      sizeSystemRaw = formData.get("sizeSystem");
+      sizesRaw = formData.get("sizes");
 
       // New files arrive as repeated "newImages" entries; the legacy single
       // "image" file is treated as one extra new file appended after them.
@@ -288,6 +317,8 @@ export async function POST(request: Request) {
       keyFeaturesRaw = body.keyFeatures;
       materials = body.materials || "";
       careInstructions = body.careInstructions || "";
+      sizeSystemRaw = body.sizeSystem;
+      sizesRaw = body.sizes;
     }
 
     if (!name.trim()) {
@@ -326,6 +357,27 @@ export async function POST(request: Request) {
     const mergedPrice = Number(price);
     const mergedStock = Number(stock);
     const mergedDescription = description.trim();
+
+    // Optional size system. A valid system derives stock from the active sizes;
+    // "none"/empty (or absent) means a legacy product with a single stock.
+    const sizeSystemValue = typeof sizeSystemRaw === "string" ? sizeSystemRaw.trim() : "";
+    let mergedSizeSystem: string | null = null;
+    let mergedSizes: ProductSize[] | null = null;
+    let finalStock = mergedStock;
+
+    if (sizeSystemValue !== "" && sizeSystemValue !== "none") {
+      const parsedSizes = parseSizesPayload(sizesRaw);
+      if (!parsedSizes.ok) {
+        return NextResponse.json({ success: false, error: parsedSizes.error }, { status: 400 });
+      }
+      const normalized = normalizeSizes(sizeSystemValue, parsedSizes.value);
+      if (!normalized.ok) {
+        return NextResponse.json({ success: false, error: normalized.error }, { status: 400 });
+      }
+      mergedSizeSystem = sizeSystemValue;
+      mergedSizes = normalized.sizes;
+      finalStock = getTotalStock({ sizeSystem: mergedSizeSystem, sizes: mergedSizes });
+    }
     const mergedSubcategory = cleanText(subcategory, 60);
     const mergedGender = cleanText(gender, 60);
     if (mergedGender !== "" && !PRODUCT_GENDERS.includes(mergedGender as any)) {
@@ -385,7 +437,7 @@ export async function POST(request: Request) {
       }).ok;
 
       const now = new Date().toISOString();
-      const productPayload = {
+      const productPayload: Record<string, any> = {
         name: mergedName,
         title: mergedName,
         brand: mergedBrand,
@@ -395,7 +447,7 @@ export async function POST(request: Request) {
         price: mergedPrice,
         discountPrice: mergedDiscountPrice,
         sku,
-        stock: mergedStock,
+        stock: finalStock,
         description: mergedDescription,
         keyFeatures: mergedKeyFeatures,
         materials: mergedMaterials,
@@ -407,6 +459,11 @@ export async function POST(request: Request) {
         createdAt: now,
         updatedAt: now,
       };
+
+      if (mergedSizeSystem) {
+        productPayload.sizeSystem = mergedSizeSystem;
+        productPayload.sizes = mergedSizes;
+      }
 
       await docRef.set(productPayload);
 
@@ -474,6 +531,9 @@ export async function PUT(request: Request) {
     let keyFeaturesSent = false;
     let materialsSent = false;
     let careInstructionsSent = false;
+    let sizeSystemSent = false;
+    let sizeSystemRaw: unknown = undefined;
+    let sizesRaw: unknown = undefined;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -502,6 +562,10 @@ export async function PUT(request: Request) {
       keyFeaturesRaw = formData.get("keyFeatures");
       materials = (formData.get("materials") as string) || "";
       careInstructions = (formData.get("careInstructions") as string) || "";
+
+      sizeSystemSent = formData.has("sizeSystem");
+      sizeSystemRaw = formData.get("sizeSystem");
+      sizesRaw = formData.get("sizes");
 
       newFiles = collectFiles(formData.getAll("newImages"));
       const legacyFile = formData.get("image");
@@ -559,6 +623,10 @@ export async function PUT(request: Request) {
       keyFeaturesRaw = body.keyFeatures;
       materials = body.materials || "";
       careInstructions = body.careInstructions || "";
+
+      sizeSystemSent = hasOwn(body, "sizeSystem");
+      sizeSystemRaw = body.sizeSystem;
+      sizesRaw = body.sizes;
 
       if (body.imageOrder !== undefined) {
         if (!Array.isArray(body.imageOrder) || !body.imageOrder.every((item: unknown) => typeof item === "string")) {
@@ -630,6 +698,39 @@ export async function PUT(request: Request) {
     const mergedDescription = (descriptionSent ? description : storedDescription).trim();
     const mergedPrice = toNumber(priceSent ? price : stored.price, 0);
     const mergedStock = toNumber(stockSent ? stock : stored.stock, Number(stock) || 10);
+
+    // Optional size system. When sizeSystem is sent and valid the stock is
+    // derived from the active sizes. "none"/empty clears the stored system and
+    // falls back to a single stock. When it is not sent the stored system (and
+    // the stock derived from its sizes) is left untouched.
+    const sizeSystemValue = typeof sizeSystemRaw === "string" ? sizeSystemRaw.trim() : "";
+    const storedIsSized = hasSizeSystem(stored);
+    let finalStock = mergedStock;
+    let mergedSizes: ProductSize[] | null = null; // set only when a system is chosen
+    let applySizeSystem = false; // true when a system is being stored
+    let clearSizeSystem = false; // true when the stored system is being removed
+
+    if (sizeSystemSent) {
+      if (sizeSystemValue === "" || sizeSystemValue === "none") {
+        clearSizeSystem = true;
+      } else {
+        const parsedSizes = parseSizesPayload(sizesRaw);
+        if (!parsedSizes.ok) {
+          return NextResponse.json({ success: false, error: parsedSizes.error }, { status: 400 });
+        }
+        const normalized = normalizeSizes(sizeSystemValue, parsedSizes.value);
+        if (!normalized.ok) {
+          return NextResponse.json({ success: false, error: normalized.error }, { status: 400 });
+        }
+        applySizeSystem = true;
+        mergedSizes = normalized.sizes;
+        finalStock = getTotalStock({ sizeSystem: sizeSystemValue, sizes: mergedSizes });
+      }
+    } else if (storedIsSized) {
+      // Never overwrite a sized product's derived stock with a sent/default
+      // value while its size system is left in place.
+      finalStock = getTotalStock(stored);
+    }
 
     if (!mergedName) {
       return NextResponse.json(
@@ -787,7 +888,7 @@ export async function PUT(request: Request) {
         sku = generated;
       }
 
-      const updatePayload = {
+      const updatePayload: Record<string, any> = {
         name: mergedName,
         title: mergedName,
         brand: mergedBrand,
@@ -797,7 +898,7 @@ export async function PUT(request: Request) {
         price: mergedPrice,
         discountPrice: mergedDiscountPrice,
         sku,
-        stock: mergedStock,
+        stock: finalStock,
         description: mergedDescription,
         keyFeatures: mergedKeyFeatures,
         materials: mergedMaterials,
@@ -809,6 +910,16 @@ export async function PUT(request: Request) {
         updatedAt: new Date().toISOString(),
       };
 
+      // Store the chosen system, remove it when cleared, otherwise leave the
+      // stored sizeSystem/sizes fields untouched.
+      if (applySizeSystem) {
+        updatePayload.sizeSystem = sizeSystemValue;
+        updatePayload.sizes = mergedSizes;
+      } else if (clearSizeSystem) {
+        updatePayload.sizeSystem = FieldValue.delete();
+        updatePayload.sizes = FieldValue.delete();
+      }
+
       await docRef.update(updatePayload);
 
       // Best-effort cleanup of images that were removed or replaced.
@@ -816,10 +927,17 @@ export async function PUT(request: Request) {
       const removedUrls = currentImageUrls.filter((url) => !finalUrlSet.has(url));
       await bestEffortDeleteStoragePaths(productStoragePathsForCleanup(removedUrls));
 
+      // Never leak the FieldValue.delete() sentinels in the JSON response.
+      const responsePayload: Record<string, any> = { ...updatePayload };
+      if (clearSizeSystem) {
+        delete responsePayload.sizeSystem;
+        delete responsePayload.sizes;
+      }
+
       return NextResponse.json({
         success: true,
         message: "Product updated successfully",
-        product: { id, ...updatePayload },
+        product: { id, ...responsePayload },
       });
     } catch (saveError) {
       console.error("PUT /api/admin/products failed after uploads; rolling back:", saveError);

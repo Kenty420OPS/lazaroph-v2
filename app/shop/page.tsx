@@ -21,6 +21,8 @@ interface Product {
   images?: { imageUrl: string; isMain?: boolean }[];
   description?: string;
   stock?: number;
+  sizeSystem?: string;
+  sizes?: Array<{ label: string; active: boolean; stock: number }>;
 }
 
 // Fallback used for the pills until (or unless) /api/categories loads.
@@ -295,6 +297,9 @@ function ShopPageContent() {
               const discounted = hasValidDiscount(Number(product.price), product.discountPrice);
               const chargedPriceNumber = getChargedPrice(product);
               const formattedChargedPrice = `₱${chargedPriceNumber.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+              const isSized = !!product.sizeSystem;
+              const hasSelectableSize =
+                isSized && (product.sizes ?? []).some((size) => size.active && size.stock > 0);
 
               return (
                 <div
@@ -357,19 +362,38 @@ function ShopPageContent() {
                         )}
                       </div>
 
-                      <button
-                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-bold transition-colors shadow-sm"
-                        onClick={() => {
-                          addToCart({
-                            id: product.id,
-                            name: product.name || product.title || "Untitled Product",
-                            price: getChargedPrice(product),
-                            imageUrl: displayImage
-                          });
-                        }}
-                      >
-                        Add to Cart
-                      </button>
+                      {isSized ? (
+                        hasSelectableSize ? (
+                          <Link
+                            href={`/shop/${product.id}`}
+                            className="px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-bold transition-colors shadow-sm"
+                          >
+                            Select size
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-3 py-1.5 rounded-lg bg-neutral-800 text-neutral-500 text-xs font-bold cursor-not-allowed"
+                          >
+                            Sold out
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          className="px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-bold transition-colors shadow-sm"
+                          onClick={() => {
+                            addToCart({
+                              id: product.id,
+                              name: product.name || product.title || "Untitled Product",
+                              price: getChargedPrice(product),
+                              imageUrl: displayImage
+                            });
+                          }}
+                        >
+                          Add to Cart
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

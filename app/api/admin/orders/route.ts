@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 import { isValidStatusForCourier } from "@/lib/order-status";
+import { hasSizeSystem, getTotalStock } from "@/lib/product";
+
+// Thrown inside the status transaction when the order disappeared between the
+// pre-read and the transaction so the response stays 404 (not a generic 500).
+class OrderStatusError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "OrderStatusError";
+    this.status = status;
+    Object.setPrototypeOf(this, OrderStatusError.prototype);
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -121,13 +135,110 @@ export async function PATCH(request: Request) {
       );
     }
 
-    await orderRef.update({ 
-      status, 
-      updatedAt: new Date().toISOString() 
+    // Status update (and, on a first-time cancel of a stock-decremented order,
+    // the stock restore) happens in ONE Firestore transaction: all reads come
+    // before all writes, so the restore can never run twice. The callback may
+    // run more than once, so it stays free of Storage and network calls.
+    await adminDb!.runTransaction(async (t) => {
+      // READS first.
+      const snap = await t.get(orderRef);
+      if (!snap.exists) {
+        throw new OrderStatusError(404, "Order not found");
+      }
+      const order = snap.data()!;
+
+      const shouldRestore =
+        status === "cancelled" &&
+        order.status !== "cancelled" &&
+        order.stockDecremented === true &&
+        order.stockRestored !== true;
+
+      // Product ids only in the restore case, read with ONE getAll.
+      const items: any[] = Array.isArray(order.items) ? order.items : [];
+      const productIds = shouldRestore
+        ? Array.from(
+            new Set(
+              items
+                .map((item: any) => item?.id)
+                .filter((pid: any) => typeof pid === "string" && pid !== "")
+            )
+          )
+        : [];
+      const productRefs = productIds.map((pid) => adminDb!.collection("products").doc(pid));
+      const productSnaps = productRefs.length > 0 ? await t.getAll(...productRefs) : [];
+      const productMap: Record<string, any> = {};
+      productSnaps.forEach((ps, i) => {
+        productMap[productIds[i]] = ps.exists ? ps.data() : null;
+      });
+
+      // WRITES.
+      const updatedAt = new Date().toISOString();
+      const orderUpdate: Record<string, any> = { status, updatedAt };
+      if (shouldRestore) {
+        orderUpdate.stockRestored = true;
+      }
+      t.update(orderRef, orderUpdate);
+
+      if (!shouldRestore) return;
+
+      // Sum the restored quantity per product: sized lines per size label,
+      // legacy lines (no size) per product for the plain stock field.
+      const restoreByProduct: Record<string, number> = {};
+      const restoreBySize: Record<string, Record<string, number>> = {};
+      for (const item of items) {
+        if (!item || typeof item.id !== "string" || item.id === "") continue;
+        const qty = item.quantity;
+        if (typeof qty !== "number" || !Number.isFinite(qty) || qty <= 0) continue;
+        if (typeof item.size === "string" && item.size !== "") {
+          restoreBySize[item.id] = restoreBySize[item.id] || {};
+          restoreBySize[item.id][item.size] = (restoreBySize[item.id][item.size] || 0) + qty;
+        } else {
+          restoreByProduct[item.id] = (restoreByProduct[item.id] || 0) + qty;
+        }
+      }
+
+      for (let i = 0; i < productIds.length; i++) {
+        const pid = productIds[i];
+        const product = productMap[pid];
+        if (!product) continue; // Product no longer exists — skip it.
+
+        if (hasSizeSystem(product)) {
+          const sizeSums = restoreBySize[pid] || {};
+          if (Object.keys(sizeSums).length === 0) continue;
+          // Rewrite the whole sizes array (never dotted field paths). Exact
+          // label match; a label that is no longer in sizes is skipped.
+          const newSizes = product.sizes.map((sizeEntry: any) => {
+            if (!sizeEntry || typeof sizeEntry.label !== "string") return sizeEntry;
+            const qty = sizeSums[sizeEntry.label];
+            if (!qty) return sizeEntry;
+            const currentStock =
+              typeof sizeEntry.stock === "number" && Number.isFinite(sizeEntry.stock)
+                ? sizeEntry.stock
+                : 0;
+            return { ...sizeEntry, stock: currentStock + qty };
+          });
+          t.update(productRefs[i], {
+            sizes: newSizes,
+            stock: getTotalStock({ ...product, sizes: newSizes }),
+            updatedAt,
+          });
+        } else {
+          const qty = restoreByProduct[pid] || 0;
+          if (qty > 0 && typeof product.stock === "number") {
+            t.update(productRefs[i], {
+              stock: product.stock + qty,
+              updatedAt,
+            });
+          }
+        }
+      }
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
+    if (error instanceof OrderStatusError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    }
     console.error("Error updating order:", error);
     return NextResponse.json({ success: false, error: "Failed to update order" }, { status: 500 });
   }
