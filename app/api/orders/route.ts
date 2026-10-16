@@ -267,6 +267,7 @@ export async function POST(request: Request) {
         contact,
         address: courier === "Pickup" ? "" : address,
       },
+      userId: chatUid ?? null,
       shipping: {
         courier,
         shippingFee,
