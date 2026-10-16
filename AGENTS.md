@@ -73,7 +73,7 @@ Store Settings and payment methods management.
 - PATCH /api/admin/orders validates the status against the courier stored on the order. Duplicate app/api/admin/orders/[id]/route.ts was removed.
 - Pickup orders store customer.address as "" and a server-built branch snapshot (branchId, branchName, branchAddress).
 - Known limitation: the Lalamove free-text address is not cross-checked against the selected city.
-- Open: Firestore rules still allow admin client writes to orders (no code path uses it today); consider closing in Mission 10 hardening.
+- Closed in Mission 10 order-creation hardening (PR #23, f2c9f2f): Firestore rules now deny all client writes to /orders; admin order writes go through the API.
 - Test orders from the Part B preview tests are kept until Part C; delete ALL of them then and re-activate payment methods.
 
 ### Products mission (Done)
@@ -82,6 +82,13 @@ Store Settings and payment methods management.
 - P5a and P5b: PR #17, merge commit 0ad7a8f. Server-generated immutable SKU (LZPH-XXXXX), discountPrice (must be lower than price), subcategory, gender, key features, materials, care instructions; orders charge the effective price and store originalPrice and sku; shop grid shows the discounted price and the cart uses the charged price.
 - P6: PR #18, merge commit da6c464. Public GET /api/products/[id] (404 for missing and non-live products with the same response) and the /shop/[id] detail page.
 - P7: PR #20, merge commit 5f5f34e. Managed brand list: lib/brands.ts, public GET /api/brands, admin POST and DELETE /api/admin/brands (admin or superadmin; slug document id with create(); delete blocked while a product uses the brand), Brands tab in the admin panel, brand dropdown in the product form with server-side validation (legacy free-text brands stay editable when unchanged). No rename, no seed script.
+- P9 (sizes): PR #30, merge commit e42343f.
+  - S1 (cf6272d): optional size system with per-size stock, enforced on the server.
+  - S2 (640c0ce): admin form size dropdown and per-size stock.
+  - S3 (b5c7d01, 0abbab1): cart lines keyed by product id and size; size selector on the product page and "Select size" on the grid.
+  - S4 (4a11bab): per-size stock check and decrement in one transaction.
+  - S5 (9bed6db): size shown on order items in admin and track-order.
+  - S6 (41a3054): stock restored once when an admin cancels an order (orders marked stockDecremented, stockRestored).
 
 ### Mission 10 hardening-small (Done)
 - Done in PR #22, merge commit 6202d3b.
@@ -95,7 +102,7 @@ Store Settings and payment methods management.
 ### Mission 10 order-creation hardening (Done)
 - Done in PR #23, merge commit 37b3eb0.
 - Chat uid is derived from a verified Firebase ID token (Authorization: Bearer header), never from the form field (34dc6ba).
-- Customer input validated and trimmed on the server: name (max 100), address (max 500, skipped for Pickup), referenceNumber (4–64 chars), contact (max 50, at least 7 digits after stripping non-digits). Cart capped at 50 line items. Stock checked against the summed quantity per product — no decrement (stock management remains manual) (af1c848).
+- Customer input validated and trimmed on the server: name (max 100), address (max 500, skipped for Pickup), referenceNumber (4–64 chars), contact (max 50, at least 7 digits after stripping non-digits). Cart capped at 50 line items. Stock checked against the summed quantity per product — no decrement at that point (superseded by P9/PR #30, which checks and decrements per-size stock in one transaction) (af1c848).
 - Idempotent order creation: the client generates a UUID per checkout attempt (crypto.randomUUID) and sends it as idempotencyKey. The server uses it as the Firestore document ID, so a retry with the same key returns the existing order instead of creating a duplicate. Orders now have 36-character UUID ids (a1bbef7).
 - Shared in-memory rate limiter extracted to lib/rate-limit.ts. /api/orders is limited to 10 requests per 10 minutes per IP (125cd14).
 - firestore.rules: /orders/{orderId} block changed to `allow write: if false`; admin order writes go exclusively through the server-side API. Rules deployed to the lazaroph-v2 Firebase project after merge (f2c9f2f).
@@ -117,10 +124,11 @@ Store Settings and payment methods management.
 11. Products gap: brand matching is exact and case-sensitive; renaming brands is not supported.
 12. Products gap: the brand in-use check on delete is not atomic with product creation (very small race).
 
-### Known gaps (post-PR #23)
+### Known gaps (post-PR #30)
 - In-memory rate limiting is per serverless instance, not shared across Vercel cold-start instances. It slows simple abuse but does not provide a hard global cap. If shared IPs get spurious 429s, raise the limit or migrate to an external store (e.g. Upstash Redis).
-- Stock is checked against the ordered quantity at submit time but is never decremented. Stock management remains manual (admin updates the product). Two customers can race and both succeed if only one unit is left.
-- A retry with the same idempotency key but a changed cart returns the original order silently. The client never sends a changed cart on retry (it reuses the same FormData), so this is not a real problem today, but it is a known behaviour.
+- Stock bookkeeping after a cancel is one-way: moving a cancelled order back to another status does not decrement stock again, and a later cancel does not restore it twice (stockRestored stays true). Stock is only restored once per order, by the cancel itself.
+- Orders created before PR #30 have no stockDecremented marker, so cancelling them does not change stock.
+- A retry with the same idempotency key and contact but a changed cart returns the original order silently. The client never sends a changed cart on retry (it reuses the same FormData), so this is not a real problem today, but it is a known behaviour.
 - The checkout page still sends a `uid` form field; the server ignores it (uid now comes from the verified ID token). The dead field can be removed in a future cleanup.
 - The chat feature still writes conversation and message documents to Firestore directly from the client, which conflicts with Hard Rule #1. This is a known architectural exception; the decision to migrate chat writes through the API is pending.
 - The comment above the /orders Firestore rule still says "Admin can read/write all"; only the `allow write` line was changed. The comment should be updated when rules are next edited.
