@@ -134,6 +134,15 @@ Store Settings and payment methods management.
 
 ## Current Mission
 
+### Storefront design (In progress)
+- Homepage only (presentation only, no behaviour or data-fetching changes). White and black only: #0A0A0A / #FFFFFF, secondary text #6B6B6B on white and #B3B3B3 on black.
+- app/page.tsx rebuilt with the sections in order: hero (logo on a white tile), trust points, featured categories, shop by brand, trending, new arrivals, store info, footer — alternating black/white as specified.
+- New components under components/home/: SiteHeader (LAZAROPH wordmark only, "v2" badge removed, keeps AuthMenu + cart), ProductSections (trending + new arrivals, one GET /api/products), BrandTiles (GET /api/brands, falls back to the brands on live products when the managed list is empty), SiteFooter (logo on a white tile, links, Marikina pickup branch from lib/branches).
+- Categories still come from getPublicCategories(), so the managed image/tagline/toggle and the enabled-only filtering are unchanged; disabled categories stay hidden.
+- "v2" badge removed from the /shop, /shop/[id] and /cart headers and from the metadata title; tagline there bumped from text-[10px] to text-xs. AuthMenu buttons got min-h-11 (44px) tap height.
+- Verified on the local production build at 375px and 768px: no horizontal overflow, no text below 12px, all homepage tap targets >= 44px, product rails render real products (discounted prices included) and the footer/store-info data renders.
+- npx tsc --noEmit and npm run build pass (lint skipped, no ESLint config). Branch feature/storefront-design, not committed yet.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.

@@ -158,9 +158,9 @@ function ShopPageContent() {
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight text-white group-hover:text-neutral-300 transition-colors">
-                LAZAROPH <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">v2</span>
+                LAZAROPH
               </span>
-              <p className="text-[10px] text-neutral-400 hidden sm:block">AUTHENTIC. LEGIT. BELOW MARKET PRICE.</p>
+              <p className="text-xs text-neutral-400 hidden sm:block">AUTHENTIC. LEGIT. BELOW MARKET PRICE.</p>
             </div>
           </Link>
 
