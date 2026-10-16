@@ -108,6 +108,26 @@ Store Settings and payment methods management.
 - firestore.rules: /orders/{orderId} block changed to `allow write: if false`; admin order writes go exclusively through the server-side API. Rules deployed to the lazaroph-v2 Firebase project after merge (f2c9f2f).
 - Cart page: long order IDs (36-char UUIDs) now wrap with `break-all` instead of being truncated, and the date stays `shrink-0` so cards do not overflow (89c390f).
 
+### Homepage categories (Done)
+- Done in PR #27, merge commit c18e58a.
+- Optional per-category image and tagline, plus a "Show on homepage" toggle, handled on the server (87451ba).
+- Admin category editor with a product count; homepage cards use the managed image and tagline (9aaef0e, ca0b7b9).
+- firestore.rules and storage.rules: deny unlisted paths, close client writes to categories, and allow public read of category images (edba6b7). Rules deployed to the lazaroph-v2 Firebase project.
+
+### Category disable (Done)
+- Done in PR #29, merge commit 33fbb3a.
+- `disabled` flag on the public category list and the admin PUT (fcb6b37).
+- New or changed products reject disabled categories (76d77ef).
+- Admin Disable/Enable button and badge (06ac043).
+- Disabled categories are hidden from the homepage and from the shop pills, and /shop?category=<disabled> falls back to All (94d827d).
+- Production test passed.
+
+### Checkout payment step (Done)
+- Done in PR #32, merge commit 33ec57a (commit 8a11c34).
+- The checkout is split into two steps in the same form (noValidate, step-aware onSubmit). Step 1 = Order Summary and Shipping Information with "Proceed to Payment Details"; step 2 = Payment Details only, with a large QR, "Total to pay", Back and Submit Order.
+- Steps are hidden with the `hidden` class, not unmounted, so the proof-of-payment file survives Back.
+- The order FormData, Authorization header, idempotency key and redirect are unchanged.
+
 ## Current Mission
 
 ### Mission 10 (backlog)
@@ -133,6 +153,8 @@ Store Settings and payment methods management.
 - The chat feature still writes conversation and message documents to Firestore directly from the client, which conflicts with Hard Rule #1. This is a known architectural exception; the decision to migrate chat writes through the API is pending.
 - The comment above the /orders Firestore rule still says "Admin can read/write all"; only the `allow write` line was changed. The comment should be updated when rules are next edited.
 - /favicon.ico returns 404; no favicon is present in the repo.
+- Checkout on iPhone: the step 2 fields and the Submit Order button overflow the right edge (grid items without min-w-0, plus a wide file input). The fix is deferred to Mission 12 and blocks launch until fixed.
+- Browser Back on the checkout leaves the page instead of returning to step 1.
 
 ### Status and next (Oct 13, 2026)
 - Mission 10 hardening (PR #22 and PR #23) is merged and deployed.
