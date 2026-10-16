@@ -654,26 +654,26 @@ export default function AdminPage() {
           <p className="text-[10px] text-neutral-400 hidden sm:block">Server-side Authenticated Mode</p>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="hidden sm:flex bg-neutral-900 p-1 rounded-lg border border-neutral-800">
+          <div className="flex overflow-x-auto whitespace-nowrap bg-neutral-900 p-1 rounded-lg border border-neutral-800">
             <button
               onClick={() => {
                 setActiveTab("products");
                 loadBrands();
                 loadCategories();
               }}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "products" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "products" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Products
             </button>
             <button
               onClick={() => setActiveTab("orders")}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "orders" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "orders" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Orders
             </button>
             <button
               onClick={() => setActiveTab("chats")}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${activeTab === "chats" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${activeTab === "chats" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Chats
               {chats.reduce((acc, c) => acc + (c.unreadAdmin || 0), 0) > 0 && (
@@ -685,7 +685,7 @@ export default function AdminPage() {
             {userRole === 'superadmin' && (
               <button
                 onClick={() => setActiveTab("adminmgmt")}
-                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "adminmgmt" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+                className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "adminmgmt" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
               >
                 Admin Management
               </button>
@@ -693,20 +693,20 @@ export default function AdminPage() {
             {userRole === 'superadmin' && (
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "settings" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+                className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "settings" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
               >
                 Store Settings
               </button>
             )}
             <button
               onClick={() => setActiveTab("brands")}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "brands" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "brands" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Brands
             </button>
             <button
               onClick={() => setActiveTab("categories")}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "categories" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "categories" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Categories
             </button>
