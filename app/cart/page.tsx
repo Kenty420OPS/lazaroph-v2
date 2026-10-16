@@ -64,44 +64,51 @@ export default function CartPage() {
         ) : (
           <div className="flex flex-col lg:flex-row gap-10">
             <div className="flex-1 space-y-4">
-              {cart.map((item) => (
-                <div key={item.id} className="flex gap-4 p-4 bg-neutral-900/60 rounded-xl border border-neutral-800 items-center">
-                  <div className="w-24 h-24 bg-black rounded-lg overflow-hidden flex-shrink-0">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-neutral-700">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white truncate">{item.name}</h3>
-                    <p className="text-neutral-400 text-sm mt-1">₱{item.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
-                    <div className="flex items-center gap-4 mt-3">
-                      <div className="flex items-center bg-black border border-neutral-700 rounded-lg overflow-hidden h-8">
-                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-3 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors h-full flex items-center justify-center">
-                          -
+              {cart.map((item) => {
+                const size = item.size ?? "";
+                const key = `${item.id}::${size}`;
+                return (
+                  <div key={key} className="flex gap-4 p-4 bg-neutral-900/60 rounded-xl border border-neutral-800 items-center">
+                    <div className="w-24 h-24 bg-black rounded-lg overflow-hidden flex-shrink-0">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-neutral-700">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-white truncate">{item.name}</h3>
+                      {size ? (
+                        <p className="text-neutral-400 text-xs sm:text-sm mt-1">Size: {size}</p>
+                      ) : null}
+                      <p className="text-neutral-400 text-sm mt-1">₱{item.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
+                      <div className="flex items-center gap-4 mt-3">
+                        <div className="flex items-center bg-black border border-neutral-700 rounded-lg overflow-hidden h-8">
+                          <button onClick={() => updateQuantity(item.id, item.quantity - 1, size)} className="px-3 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors h-full flex items-center justify-center">
+                            -
+                          </button>
+                          <span className="px-4 text-sm font-medium text-white border-x border-neutral-700 h-full flex items-center justify-center bg-neutral-900">
+                            {item.quantity}
+                          </span>
+                          <button onClick={() => updateQuantity(item.id, item.quantity + 1, size)} className="px-3 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors h-full flex items-center justify-center">
+                            +
+                          </button>
+                        </div>
+                        <button onClick={() => removeFromCart(item.id, size)} className="text-xs font-semibold text-red-500 hover:text-red-400 underline underline-offset-2">
+                          Remove
                         </button>
-                        <span className="px-4 text-sm font-medium text-white border-x border-neutral-700 h-full flex items-center justify-center bg-neutral-900">
-                          {item.quantity}
-                        </span>
-                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-3 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors h-full flex items-center justify-center">
-                          +
-                        </button>
                       </div>
-                      <button onClick={() => removeFromCart(item.id)} className="text-xs font-semibold text-red-500 hover:text-red-400 underline underline-offset-2">
-                        Remove
-                      </button>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-white">₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-white">₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="lg:w-80 flex-shrink-0">
@@ -180,6 +187,9 @@ export default function CartPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-semibold text-white truncate">{item.name}</p>
+                                {item.size ? (
+                                  <p className="text-xs sm:text-sm text-neutral-500 truncate">Size: {item.size}</p>
+                                ) : null}
                                 <p className="text-xs text-neutral-500">Qty: {item.quantity}</p>
                               </div>
                             </div>

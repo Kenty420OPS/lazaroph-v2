@@ -252,7 +252,7 @@ export default function CheckoutPage() {
             id: data.orderId,
             date: new Date().toISOString(),
             // Only store display-safe fields — NO contact, NO address
-            items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity })),
+            items: cart.map(item => ({ name: item.name, imageUrl: item.imageUrl, quantity: item.quantity, size: item.size })),
             total: finalTotal,
           };
           // Deduplicate and cap at 5 entries
@@ -309,12 +309,16 @@ export default function CheckoutPage() {
         <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800 mb-8">
           <h2 className="text-lg font-bold mb-4 border-b border-neutral-800 pb-2">Order Summary</h2>
           <div className="space-y-2 mb-4">
-            {cart.map(item => (
-              <div key={item.id} className="flex justify-between text-sm text-neutral-400">
-                <span>{item.quantity}x {item.name}</span>
-                <span>₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
-              </div>
-            ))}
+            {cart.map(item => {
+              const size = item.size ?? "";
+              const key = `${item.id}::${size}`;
+              return (
+                <div key={key} className="flex justify-between text-sm text-neutral-400">
+                  <span>{item.quantity}x {item.name}{size ? ` (Size: ${size})` : ""}</span>
+                  <span>₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
+                </div>
+              );
+            })}
           </div>
           
           <div className="border-t border-neutral-800 pt-4 space-y-2 text-sm">
