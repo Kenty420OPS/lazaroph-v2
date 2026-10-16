@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
+import AuthMenu from "@/components/AuthMenu";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -39,10 +40,11 @@ export default function CartPage() {
               </span>
             </div>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/shop" className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link href="/shop" className="hidden sm:inline-flex text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm">
               Continue Shopping
             </Link>
+            <AuthMenu />
           </div>
         </div>
       </header>

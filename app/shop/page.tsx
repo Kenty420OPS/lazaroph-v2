@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
+import AuthMenu from "@/components/AuthMenu";
 import { hasValidDiscount, getChargedPrice, PRODUCT_CATEGORIES } from "@/lib/product";
 import { CATEGORY_NAME_MAX } from "@/lib/categories";
 
@@ -163,10 +164,10 @@ function ShopPageContent() {
             </div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link
               href="/shop"
-              className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm"
+              className="hidden sm:inline-flex text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm"
             >
               Public Catalog
             </Link>
@@ -180,6 +181,7 @@ function ShopPageContent() {
                 </span>
               )}
             </Link>
+            <AuthMenu />
           </div>
         </div>
       </header>
