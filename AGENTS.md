@@ -108,6 +108,10 @@ Store Settings and payment methods management.
 - firestore.rules: /orders/{orderId} block changed to `allow write: if false`; admin order writes go exclusively through the server-side API. Rules deployed to the lazaroph-v2 Firebase project after merge (f2c9f2f).
 - Cart page: long order IDs (36-char UUIDs) now wrap with `break-all` instead of being truncated, and the date stays `shrink-0` so cards do not overflow (89c390f).
 
+### Customer auth (Done)
+- AuthProvider (contexts/AuthContext.tsx) wraps the app: onAuthStateChanged via the existing lib/firebase instance (no duplicate init), exposes user/loading/signOut; anonymous chat sessions are not treated as signed-in.
+- AuthMenu (components/AuthMenu.tsx) in the /shop, /shop/[id] and /cart headers: "Sign in" link when signed out; truncated display name/email + "Sign out" button when signed in; pulse placeholder while auth loads (no flash); sign-out redirects to "/". Mobile: avatar initial instead of name, "Public Catalog"/"Continue Shopping" header buttons hidden below sm.
+
 ### Homepage categories (Done)
 - Done in PR #27, merge commit c18e58a.
 - Optional per-category image and tagline, plus a "Show on homepage" toggle, handled on the server (87451ba).

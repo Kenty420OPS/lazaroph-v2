@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
+import AuthMenu from "@/components/AuthMenu";
 import { hasValidDiscount, getChargedPrice, SIZE_SYSTEM_NAMES } from "@/lib/product";
 
 interface Product {
@@ -97,10 +98,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             </div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link
               href="/shop"
-              className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm"
+              className="hidden sm:inline-flex text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm"
             >
               Public Catalog
             </Link>
@@ -114,6 +115,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 </span>
               )}
             </Link>
+            <AuthMenu />
           </div>
         </div>
       </header>
