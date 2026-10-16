@@ -22,6 +22,10 @@ import {
   PRODUCT_CATEGORIES,
   normalizeImages,
   hasValidDiscount,
+  SIZE_SYSTEMS,
+  SIZE_SYSTEM_NAMES,
+  hasSizeSystem,
+  type ProductSize,
 } from "@/lib/product";
 
 // One slot in the product photo form: either an image already saved on the
@@ -80,6 +84,8 @@ export default function AdminPage() {
   const [price, setPrice] = useState("");
   const [discountPrice, setDiscountPrice] = useState("");
   const [stock, setStock] = useState("10");
+  const [sizeSystem, setSizeSystem] = useState<string>("");
+  const [sizeRows, setSizeRows] = useState<Array<{ label: string; active: boolean; stock: string }>>([]);
   const [description, setDescription] = useState("");
   const [keyFeatures, setKeyFeatures] = useState("");
   const [materials, setMaterials] = useState("");
@@ -244,6 +250,8 @@ export default function AdminPage() {
     setPrice("");
     setDiscountPrice("");
     setStock("10");
+    setSizeSystem("");
+    setSizeRows([]);
     setDescription("");
     setKeyFeatures("");
     setMaterials("");
@@ -267,11 +275,34 @@ export default function AdminPage() {
     setGender(p.gender || "");
     setPrice(p.price?.toString() || "");
     setDiscountPrice(p.discountPrice != null ? String(p.discountPrice) : "");
-    setStock(p.stock?.toString() || "10");
     setDescription(p.description || "");
     setKeyFeatures(Array.isArray(p.keyFeatures) ? p.keyFeatures.join("\n") : p.keyFeatures || "");
     setMaterials(p.materials || "");
     setCareInstructions(p.careInstructions || "");
+
+    if (hasSizeSystem(p)) {
+      const sys = p.sizeSystem as string;
+      setSizeSystem(sys);
+      const labels = (SIZE_SYSTEMS as any)[sys] || [];
+      const existing = Array.isArray(p.sizes) ? p.sizes : [];
+      const rows = labels.map((label: string) => {
+        const found = existing.find((s: any) => s && s.label === label);
+        if (found) {
+          return {
+            label,
+            active: !!found.active,
+            stock: found.stock != null ? String(found.stock) : "10",
+          };
+        }
+        return { label, active: false, stock: "10" };
+      });
+      setSizeRows(rows);
+      setStock(p.stock?.toString() || "10");
+    } else {
+      setSizeSystem("");
+      setSizeRows([]);
+      setStock(p.stock?.toString() || "10");
+    }
   };
 
   // Compresses and appends picked files, never exceeding the slot limit. A
@@ -455,11 +486,23 @@ export default function AdminPage() {
       formData.append("gender", gender);
       formData.append("price", price);
       formData.append("discountPrice", discountPrice);
-      formData.append("stock", stock);
       formData.append("description", description);
       formData.append("keyFeatures", keyFeatures);
       formData.append("materials", materials);
       formData.append("careInstructions", careInstructions);
+
+      if (sizeSystem === "") {
+        formData.append("sizeSystem", "none");
+        formData.append("stock", stock);
+      } else {
+        formData.append("sizeSystem", sizeSystem);
+        const sizesToSend = sizeRows.map((r) => ({
+          label: r.label,
+          active: r.active,
+          stock: Number(r.stock),
+        }));
+        formData.append("sizes", JSON.stringify(sizesToSend));
+      }
 
       newFiles.forEach((file) => formData.append("newImages", file));
 
@@ -471,6 +514,17 @@ export default function AdminPage() {
           return `new:${k}`;
         });
         formData.append("imageOrder", JSON.stringify(order));
+      }
+
+      if (sizeSystem !== "") {
+        for (const r of sizeRows) {
+          const n = Number(r.stock);
+          if (!Number.isInteger(n) || n < 0 || n > 9999) {
+            showNotification("Invalid stock value (0–9999) for one or more sizes", "error");
+            setSubmitting(false);
+            return;
+          }
+        }
       }
 
       const authHeader = await getAuthHeader();
@@ -730,35 +784,100 @@ export default function AdminPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Price (?) *</label>
-                      <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required min="0" step="0.01" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                      <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Price (&#8369;) *</label>
+                      <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required min="0" step="0.01" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Stock</label>
-                      <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                      <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Discount Price (&#8369;)</label>
+                      <input type="number" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} min="0" step="0.01" placeholder="Optional" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white" />
+                      <p className="text-xs text-neutral-500 mt-1">Must be lower than the price</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Discount Price (₱)</label>
-                      <input type="number" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} min="0" step="0.01" placeholder="Optional" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
-                      <p className="text-[9px] text-neutral-500 mt-1">Must be lower than the price</p>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Target Gender</label>
-                      <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white">
+                      <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Target Gender</label>
+                      <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white">
                         <option value="">—</option>
                         {PRODUCT_GENDERS.map((g) => (
                           <option key={g} value={g}>{g}</option>
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Subcategory</label>
+                      <input type="text" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white" />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Subcategory</label>
-                    <input type="text" value={subcategory} onChange={(e) => setSubcategory(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white" />
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Size system</label>
+                      <select
+                        value={sizeSystem}
+                        onChange={(e) => {
+                          const sys = e.target.value;
+                          setSizeSystem(sys);
+                          if (sys === "") {
+                            setSizeRows([]);
+                          } else {
+                            const labels = (SIZE_SYSTEMS as any)[sys] || [];
+                            setSizeRows(labels.map((label: string) => ({ label, active: false, stock: "10" })));
+                          }
+                        }}
+                        className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                      >
+                        <option value="">No sizes (single stock)</option>
+                        {(Object.keys(SIZE_SYSTEMS) as (keyof typeof SIZE_SYSTEMS)[]).map((key) => (
+                          <option key={key} value={key}>{SIZE_SYSTEM_NAMES[key]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {sizeSystem === "" ? (
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Stock</label>
+                        <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white" />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-neutral-400 uppercase font-bold">Sizes</p>
+                        <p className="text-xs text-neutral-500">Active sizes and their stock (0–9999). Stock disabled when inactive.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {sizeRows.map((row, idx) => (
+                            <div key={row.label} className="min-h-11 py-2.5 px-2 bg-black border border-neutral-800 rounded-lg flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={row.active}
+                                onChange={(e) => {
+                                  const next = [...sizeRows];
+                                  next[idx] = { ...next[idx], active: e.target.checked };
+                                  setSizeRows(next);
+                                }}
+                                className="w-5 h-5 accent-white"
+                              />
+                              <span className="text-sm text-neutral-300 w-16">{row.label}</span>
+                              <input
+                                type="number"
+                                value={row.stock}
+                                disabled={!row.active}
+                                onChange={(e) => {
+                                  const next = [...sizeRows];
+                                  next[idx] = { ...next[idx], stock: e.target.value };
+                                  setSizeRows(next);
+                                }}
+                                min="0"
+                                max="9999"
+                                step="1"
+                                className="flex-1 bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-sm text-white disabled:opacity-40"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-neutral-400">
+                          Total stock: {sizeRows.filter((r) => r.active).reduce((sum, r) => sum + (Number(r.stock) || 0), 0)}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div>
