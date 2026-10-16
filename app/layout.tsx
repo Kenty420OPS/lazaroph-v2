@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LAZAROPH v2",
+  title: "LAZAROPH",
   description: "AUTHENTIC. LEGIT. BELOW MARKET PRICE.",
 };
 

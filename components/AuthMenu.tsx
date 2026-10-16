@@ -18,7 +18,7 @@ export default function AuthMenu() {
     return (
       <div
         aria-hidden="true"
-        className="h-8 w-20 rounded-lg bg-neutral-900 border border-neutral-800 animate-pulse"
+        className="h-11 w-24 rounded-lg bg-neutral-900 border border-neutral-800 animate-pulse"
       />
     );
   }
@@ -27,7 +27,7 @@ export default function AuthMenu() {
     return (
       <Link
         href="/sign-in"
-        className="text-xs font-bold px-3.5 py-1.5 rounded-lg border border-neutral-700 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
+        className="inline-flex items-center min-h-11 text-xs font-bold px-3.5 py-1.5 rounded-lg border border-neutral-700 text-white hover:bg-neutral-800 transition-colors whitespace-nowrap"
       >
         Sign in
       </Link>
@@ -63,7 +63,7 @@ export default function AuthMenu() {
         type="button"
         onClick={handleSignOut}
         disabled={signingOut}
-        className="text-xs font-bold px-3.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+        className="inline-flex items-center min-h-11 text-xs font-bold px-3.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {signingOut ? "Signing out..." : "Sign out"}
       </button>

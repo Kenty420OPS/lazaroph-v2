@@ -36,7 +36,7 @@ export default function CartPage() {
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight text-white group-hover:text-neutral-300 transition-colors">
-                LAZAROPH <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">v2</span>
+                LAZAROPH
               </span>
             </div>
           </Link>
