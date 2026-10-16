@@ -413,7 +413,7 @@ export async function POST(request: Request) {
 
         // 4e. Writes: create the order first (same document id as before, so a
         // retry collides), then decrement stock per product.
-        t.create(orderRef, { ...baseOrderPayload, items, subtotal, total });
+        t.create(orderRef, { ...baseOrderPayload, items, subtotal, total, stockDecremented: true });
 
         for (let index = 0; index < productIds.length; index++) {
           const productId = productIds[index];
