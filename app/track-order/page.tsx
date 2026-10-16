@@ -147,7 +147,7 @@ function TrackOrderContent() {
                         <div className="w-10 h-10 bg-black border border-neutral-800 rounded overflow-hidden">
                           {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />}
                         </div>
-                        <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}</span>
+                        <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}{typeof item.size === "string" && item.size ? ` (Size: ${item.size})` : ""}</span>
                       </div>
                       <span className="text-neutral-400">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
                     </div>
