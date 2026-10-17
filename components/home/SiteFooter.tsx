@@ -11,7 +11,7 @@ const SHOP_LINKS = [
   { label: "Watches", href: "/shop?category=Watches" },
   { label: "Slides", href: "/shop?category=Slides" },
   { label: "Apparel", href: "/shop?category=Apparel" },
-  { label: "New Arrivals", href: "/#new-arrivals" },
+  { label: "New Arrivals", href: "/shop" },
 ];
 
 const CUSTOMER_LINKS = [
