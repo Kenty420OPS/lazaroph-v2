@@ -101,7 +101,13 @@ export default async function Home() {
               <img src="/images/logo.png" alt="LAZAROPH" className="h-24 sm:h-36 w-auto max-w-full object-contain" />
             </div>
 
-            <h1 className="mt-8 max-w-3xl text-3xl sm:text-5xl font-black uppercase tracking-wide leading-tight">
+            <div className="mt-8 flex items-center justify-center gap-4 w-full max-w-xs text-xs font-bold uppercase tracking-[0.25em] text-[#B3B3B3]">
+              <span className="h-px flex-1 bg-white/20" />
+              <span>EST. 2016 &nbsp; MARIKINA</span>
+              <span className="h-px flex-1 bg-white/20" />
+            </div>
+
+            <h1 className="mt-6 max-w-3xl text-3xl sm:text-5xl font-black uppercase tracking-wide leading-tight">
               Authentic. Legit. Below Market Price.
             </h1>
             <p className="mt-4 max-w-2xl text-base sm:text-lg text-[#B3B3B3] leading-relaxed">
@@ -109,18 +115,12 @@ export default async function Home() {
               verified, and priced below market.
             </p>
 
-            <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <div className="mt-8">
               <Link
                 href="/shop"
                 className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-8 py-3 text-sm font-black uppercase tracking-widest text-[#0A0A0A] hover:bg-white/90 transition-colors"
               >
                 Shop now
-              </Link>
-              <Link
-                href="/track-order"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/40 px-8 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-white/10 transition-colors"
-              >
-                Track order
               </Link>
             </div>
           </div>
@@ -219,6 +219,58 @@ export default async function Home() {
 
             <div className="mt-8">
               <BrandTiles />
+            </div>
+          </div>
+        </section>
+
+        {/* Salmon financing — white */}
+        <section className="border-t border-[#0A0A0A]/10 bg-white text-[#0A0A0A]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+            <div className="rounded-2xl border border-[#0A0A0A]/15 p-6 sm:p-10 bg-white">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6B6B6B]">
+                    Installment financing
+                  </p>
+                  <div className="mt-4">
+                    <img
+                      src="/images/salmon-logo.png"
+                      alt="Salmon"
+                      className="h-8 sm:h-10 w-auto object-contain"
+                    />
+                  </div>
+                  <h2 className="mt-4 text-2xl sm:text-3xl font-black uppercase tracking-wide">
+                    Installment Financing via Salmon
+                  </h2>
+                  <p className="mt-3 text-base text-[#6B6B6B] leading-relaxed">
+                    Walk in to our store for the approval process.
+                  </p>
+                </div>
+
+                <div className="border-t border-[#0A0A0A]/10 pt-6 lg:border-t-0 lg:pt-0 lg:border-l lg:border-[#0A0A0A]/10 lg:pl-10">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#0A0A0A]">
+                    Bring:
+                  </h3>
+                  <ul className="mt-4 space-y-3">
+                    <li className="flex items-center gap-3 text-base text-[#0A0A0A]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0A0A0A] shrink-0" />
+                      <span>Download the Salmon app</span>
+                    </li>
+                    <li className="flex items-center gap-3 text-base text-[#0A0A0A]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0A0A0A] shrink-0" />
+                      <span>2 valid IDs</span>
+                    </li>
+                    <li className="flex items-center gap-3 text-base text-[#0A0A0A]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0A0A0A] shrink-0" />
+                      <span>2 contact references</span>
+                    </li>
+                    <li className="flex items-center gap-3 text-base text-[#0A0A0A]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0A0A0A] shrink-0" />
+                      <span>Must be GCash verified</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </section>

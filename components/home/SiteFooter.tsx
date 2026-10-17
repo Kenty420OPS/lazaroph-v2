@@ -1,6 +1,25 @@
 import Link from "next/link";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 
+const SHOP_LINKS = [
+  { label: "Men", href: "/shop?gender=Men" },
+  { label: "Women", href: "/shop?gender=Women" },
+  { label: "Kids", href: "/shop?gender=Kids" },
+  { label: "Sneakers", href: "/shop?category=Sneakers" },
+  { label: "Basketball Shoes", href: "/shop?category=Basketball%20Shoes" },
+  { label: "Bags & Luggage", href: "/shop?category=Bags%20%26%20Luggage" },
+  { label: "Watches", href: "/shop?category=Watches" },
+  { label: "Slides", href: "/shop?category=Slides" },
+  { label: "Apparel", href: "/shop?category=Apparel" },
+  { label: "New Arrivals", href: "/shop" },
+];
+
+const CUSTOMER_LINKS = [
+  { label: "Track order", href: "/track-order" },
+  { label: "Sign in", href: "/sign-in" },
+  { label: "Create account", href: "/sign-up" },
+];
+
 // Homepage footer. Server-rendered: links and the pickup branch details only,
 // no client state. The logo sits on a white tile so the black artwork shows.
 export default function SiteFooter() {
@@ -10,81 +29,76 @@ export default function SiteFooter() {
     <footer className="bg-[#0A0A0A] text-white border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          {/* Column 1: Brand */}
           <div className="lg:col-span-1">
             <div className="inline-flex bg-white rounded-xl p-4">
               <img src="/images/logo.png" alt="LAZAROPH" className="h-14 w-auto" />
             </div>
-            <p className="mt-4 text-sm font-bold uppercase tracking-[0.2em] text-[#B3B3B3]">
-              Authentic. Legit. Below Market Price.
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.25em] text-[#B3B3B3]">
+              EST. 2016 &nbsp; MARIKINA
             </p>
-            <p className="mt-3 text-base text-[#B3B3B3] leading-relaxed">
-              Original sneakers, bags and luggage, and watches — verified and shipped from
-              Marikina.
+            <p className="mt-2 text-sm font-bold uppercase tracking-[0.2em] text-[#B3B3B3]">
+              Authentic. Legit. Below Market Price.
             </p>
           </div>
 
+          {/* Column 2: Shop */}
           <nav aria-label="Shop">
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-white">Shop</h2>
-            <ul className="mt-2">
-              <li>
-                <Link
-                  href="/shop"
-                  className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
-                >
-                  Browse all products
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/cart"
-                  className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
-                >
-                  Your cart
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/track-order"
-                  className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
-                >
-                  Track your order
-                </Link>
-              </li>
+            <ul className="mt-2 space-y-1">
+              {SHOP_LINKS.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </nav>
 
-          <nav aria-label="Account">
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-white">Account</h2>
-            <ul className="mt-2">
-              <li>
-                <Link
-                  href="/sign-in"
-                  className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
-                >
-                  Sign in
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/sign-up"
-                  className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
-                >
-                  Create account
-                </Link>
-              </li>
+          {/* Column 3: Customer */}
+          <nav aria-label="Customer">
+            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-white">Customer</h2>
+            <ul className="mt-2 space-y-1">
+              {CUSTOMER_LINKS.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </nav>
 
+          {/* Column 4: Visit us */}
           {branch && (
             <div>
               <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-white">
-                Store pickup
+                Visit us
               </h2>
               <address className="mt-3 not-italic space-y-2">
                 <p className="text-base text-white font-semibold">{branch.name}</p>
                 <p className="text-base text-[#B3B3B3] leading-relaxed">{branch.address}</p>
                 <p className="text-base text-[#B3B3B3]">{branch.hours}</p>
-                <p className="text-base text-[#B3B3B3]">{branch.phone}</p>
+                {branch.phones?.map((phone) => (
+                  <p key={phone} className="text-base text-[#B3B3B3]">
+                    {phone}
+                  </p>
+                )) ?? (
+                  <p className="text-base text-[#B3B3B3]">{branch.phone}</p>
+                )}
+                <p className="pt-2 text-base text-[#B3B3B3] leading-relaxed">
+                  Store pickup is available after your payment is confirmed.
+                </p>
+                <p className="pt-1 text-sm font-bold uppercase tracking-wider text-white">
+                  Authenticity guaranteed
+                </p>
               </address>
             </div>
           )}

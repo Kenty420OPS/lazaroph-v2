@@ -148,6 +148,13 @@ Store Settings and payment methods management.
 - API /api/products accepts ?gender=Men|Women|Kids and returns products where gender matches or is "Unisex" or empty (treated as Unisex). 
 - Category logic unchanged.
 
+### Storefront polish (In progress)
+- Pass 1 presentation polish and Salmon installment financing section.
+- Hero: eyebrow "EST. 2016   MARIKINA" with thin rules, single "Shop now" button to /shop (Track order button removed).
+- Salmon section added after "Shop by brand" with exact copy, logo from /images/salmon-logo.png, responsive desktop side-by-side and mobile stacked layout.
+- SiteFooter: 4 columns (Brand tile with EST. 2016 MARIKINA & tagline, Shop with 10 nav-aligned links, Customer links, Visit us with branch details, pickup confirmation note, and authenticity guarantee).
+- lib/branches.ts: address postal code updated from 1807 to 1805; added `phones` array while preserving `phone`.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
