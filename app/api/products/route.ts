@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const categoryParam = searchParams.get("category");
+    const genderParam = searchParams.get("gender");
     const searchParam = searchParams.get("search");
 
     const querySnapshot = await getDocs(collection(db, "products"));
@@ -31,6 +32,15 @@ export async function GET(request: Request) {
       products = products.filter((p) => {
         const pCat = (p.category || "").toLowerCase();
         return pCat === catLower || (catLower === "sneakers" && !p.category);
+      });
+    }
+
+    // Gender filter — Unisex (and a missing gender) matches every gender.
+    if (genderParam && ["Men", "Women", "Kids"].includes(genderParam)) {
+      const genderLower = genderParam.toLowerCase();
+      products = products.filter((p) => {
+        const pGender = (p.gender || "").toLowerCase();
+        return pGender === genderLower || pGender === "" || pGender === "unisex";
       });
     }
 
