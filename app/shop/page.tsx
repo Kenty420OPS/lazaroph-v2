@@ -29,6 +29,9 @@ interface Product {
 // Fallback used for the pills until (or unless) /api/categories loads.
 const FALLBACK_CATEGORIES: string[] = [...PRODUCT_CATEGORIES];
 
+// Gender pills are fixed (do not come from a managed list).
+const GENDER_FILTERS = ["Men", "Women", "Kids"] as const;
+
 export default function ShopPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-black" />}>
@@ -50,6 +53,10 @@ function ShopPageContent() {
   });
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("default");
+  const [selectedGender, setSelectedGender] = useState<string>(() => {
+    const param = searchParams.get("gender");
+    return param && (GENDER_FILTERS as readonly string[]).includes(param) ? param : "All";
+  });
 
   // Fetch products exclusively through the API Route Handler (/api/products)
   // Strict compliance with AGENTS.md Rule #1: No direct Firestore calls in client components.
@@ -60,6 +67,7 @@ function ShopPageContent() {
 
       const params = new URLSearchParams();
       if (selectedCategory !== "All") params.append("category", selectedCategory);
+      if (selectedGender !== "All") params.append("gender", selectedGender);
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
 
       const res = await fetch(`/api/products?${params.toString()}`);
@@ -127,7 +135,7 @@ function ShopPageContent() {
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedGender]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,21 +213,40 @@ function ShopPageContent() {
 
         {/* Filter Controls & Search */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-          {/* Category Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
-            {["All", ...categoryNames].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedCategory === cat
-                    ? "bg-white text-black shadow-md"
-                    : "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          {/* Category & Gender Pills */}
+          <div className="flex items-center gap-4 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              {["All", ...categoryNames].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                    selectedCategory === cat
+                      ? "bg-white text-black shadow-md"
+                      : "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Gender Pills */}
+            <div className="flex items-center gap-2 whitespace-nowrap border-l border-neutral-800 pl-4">
+              {["All", ...GENDER_FILTERS].map((gender) => (
+                <button
+                  key={gender}
+                  onClick={() => setSelectedGender(gender)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                    selectedGender === gender
+                      ? "bg-white text-black shadow-md"
+                      : "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
+                  }`}
+                >
+                  {gender}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Search & Sort Controls */}
