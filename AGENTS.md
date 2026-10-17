@@ -134,7 +134,7 @@ Store Settings and payment methods management.
 
 ## Current Mission
 
-### Storefront design (In progress)
+### Storefront design (Done)
 - Homepage only (presentation only, no behaviour or data-fetching changes). White and black only: #0A0A0A / #FFFFFF, secondary text #6B6B6B on white and #B3B3B3 on black.
 - app/page.tsx rebuilt with the sections in order: hero (logo on a white tile), trust points, featured categories, shop by brand, trending, new arrivals, store info, footer — alternating black/white as specified.
 - New components under components/home/: SiteHeader (LAZAROPH wordmark only, "v2" badge removed, keeps AuthMenu + cart), ProductSections (trending + new arrivals, one GET /api/products), BrandTiles (GET /api/brands, falls back to the brands on live products when the managed list is empty), SiteFooter (logo on a white tile, links, Marikina pickup branch from lib/branches).
@@ -143,7 +143,7 @@ Store Settings and payment methods management.
 - Verified on the local production build at 375px and 768px: no horizontal overflow, no text below 12px, all homepage tap targets >= 44px, product rails render real products (discounted prices included) and the footer/store-info data renders.
 - npx tsc --noEmit and npm run build pass (lint skipped, no ESLint config). Branch feature/storefront-design, not committed yet.
 
-### Shop gender filter (In progress)
+### Shop gender filter (Done)
 - Add Men/Women/Kids filter pills next to category pills on /shop. 
 - API /api/products accepts ?gender=Men|Women|Kids and returns products where gender matches or is "Unisex" or empty (treated as Unisex). 
 - Category logic unchanged.
