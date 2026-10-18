@@ -155,6 +155,10 @@ Store Settings and payment methods management.
 - SiteFooter: 4 columns (Brand tile with EST. 2016 MARIKINA & tagline, Shop with 10 nav-aligned links, Customer links, Visit us with branch details, pickup confirmation note, and authenticity guarantee).
 - lib/branches.ts: address postal code updated from 1807 to 1805; added `phones` array while preserving `phone`.
 
+### Storefront layout (In progress)
+- Reordered homepage sections: 1. Hero (black), 2. Trending now (black), 3. New arrivals (white), 4. Shop by brand (white) with "Authentic houses and partners" eyebrow and "View all brands" link, 5. Salmon installment (white box), 6. The Lazaroph promise (black), 7. Footer (black).
+- Removed Featured categories and middle pickup store info card from app/page.tsx; removed unused getPublicCategories and branch imports.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.

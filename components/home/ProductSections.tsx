@@ -223,7 +223,7 @@ export default function ProductSections() {
 
   return (
     <>
-      <RailSection tone="dark" eyebrow="Popular right now" title="Trending">
+      <RailSection tone="dark" eyebrow="Popular right now" title="Trending now">
         {grid(trending, true, "Trending pieces land here as soon as they drop.")}
       </RailSection>
 
