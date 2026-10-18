@@ -4,6 +4,7 @@ import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
 import BrandTiles from "@/components/home/BrandTiles";
 import ProductSections from "@/components/home/ProductSections";
+import Hero from "@/components/home/Hero";
 
 export const dynamic = "force-dynamic";
 
@@ -75,36 +76,7 @@ export default function Home() {
 
       <main className="flex-1">
         {/* 1. Hero — black */}
-        <section className="bg-[#0A0A0A] text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 flex flex-col items-center text-center">
-            <div className="bg-white rounded-2xl p-6 sm:p-8">
-              <img src="/images/logo.png" alt="LAZAROPH" className="h-24 sm:h-36 w-auto max-w-full object-contain" />
-            </div>
-
-            <div className="mt-8 flex items-center justify-center gap-4 w-full max-w-xs text-xs font-bold uppercase tracking-[0.25em] text-[#B3B3B3]">
-              <span className="h-px flex-1 bg-white/20" />
-              <span>EST. 2016 &nbsp; MARIKINA</span>
-              <span className="h-px flex-1 bg-white/20" />
-            </div>
-
-            <h1 className="mt-6 max-w-3xl text-3xl sm:text-5xl font-black uppercase tracking-wide leading-tight">
-              Authentic. Legit. Below Market Price.
-            </h1>
-            <p className="mt-4 max-w-2xl text-base sm:text-lg text-[#B3B3B3] leading-relaxed">
-              Original sneakers, premium bags and luggage, and luxury watches — curated,
-              verified, and priced below market.
-            </p>
-
-            <div className="mt-8">
-              <Link
-                href="/shop"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-8 py-3 text-sm font-black uppercase tracking-widest text-[#0A0A0A] hover:bg-white/90 transition-colors"
-              >
-                Shop now
-              </Link>
-            </div>
-          </div>
-        </section>
+        <Hero />
 
         {/* 2. Trending (black) + 3. New arrivals (white) */}
         <ProductSections />

@@ -159,6 +159,10 @@ Store Settings and payment methods management.
 - Reordered homepage sections: 1. Hero (black), 2. Trending now (black), 3. New arrivals (white), 4. Shop by brand (white) with "Authentic houses and partners" eyebrow and "View all brands" link, 5. Salmon installment (white box), 6. The Lazaroph promise (black), 7. Footer (black).
 - Removed Featured categories and middle pickup store info card from app/page.tsx; removed unused getPublicCategories and branch imports.
 
+### Header and hero (In progress)
+- SiteHeader: 3-column desktop layout (nav links on left, centered 40px logo + wordmark, search icon + AuthMenu + cart on right) and mobile hamburger menu.
+- Hero: full-width black section (min-h-[560px], min 80vh on desktop) with dynamic grayscale product cover image and 60% black overlay, centered eyebrow, headline, subline, and "Shop now" / "Explore categories" buttons to /shop.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
