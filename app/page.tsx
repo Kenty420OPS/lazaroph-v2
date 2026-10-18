@@ -1,8 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { DEFAULT_CATEGORIES } from "@/lib/categories";
-import { getPublicCategories, type PublicCategory } from "@/lib/categories-server";
-import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
 import BrandTiles from "@/components/home/BrandTiles";
@@ -71,30 +68,13 @@ const TRUST_POINTS: { title: string; body: string; icon: ReactNode }[] = [
   },
 ];
 
-export default async function Home() {
-  let categories: PublicCategory[];
-
-  try {
-    categories = await getPublicCategories();
-  } catch (error) {
-    console.error("Home: failed to load categories:", error);
-    categories = DEFAULT_CATEGORIES;
-  }
-
-  // The homepage only shows the categories the admin left enabled. The managed
-  // image, tagline and homepage toggle all come from the category document.
-  const homepageCategories = categories.filter(
-    (cat) => cat.disabled !== true && cat.showOnHomepage !== false
-  );
-
-  const branch = getBranch(DEFAULT_PICKUP_BRANCH_ID);
-
+export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-[#0A0A0A] font-sans selection:bg-[#0A0A0A] selection:text-white">
       <SiteHeader />
 
       <main className="flex-1">
-        {/* Hero — black */}
+        {/* 1. Hero — black */}
         <section className="bg-[#0A0A0A] text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 flex flex-col items-center text-center">
             <div className="bg-white rounded-2xl p-6 sm:p-8">
@@ -126,96 +106,28 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Trust points — white */}
-        <section className="bg-white text-[#0A0A0A]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
-            <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6B6B6B]">
-              Why shop here
-            </p>
-            <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide">
-              The LAZAROPH promise
-            </h2>
+        {/* 2. Trending (black) + 3. New arrivals (white) */}
+        <ProductSections />
 
-            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {TRUST_POINTS.map((point) => (
-                <div key={point.title} className="flex flex-col gap-3">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#0A0A0A] text-white">
-                    {point.icon}
-                  </span>
-                  <h3 className="text-lg font-black uppercase tracking-wide">{point.title}</h3>
-                  <p className="text-base leading-relaxed text-[#6B6B6B]">{point.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Featured categories — white */}
-        {homepageCategories.length > 0 && (
-          <section className="border-t border-[#0A0A0A]/10 bg-white text-[#0A0A0A]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
-              <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6B6B6B]">
-                Collections
-              </p>
-              <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide">
-                Featured categories
-              </h2>
-
-              <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {homepageCategories.map((cat) => {
-                  const image = cat.imageUrl ?? null;
-                  // An empty tagline or blurb falls back, hence the || chain.
-                  const blurb = cat.tagline || cat.blurb || `Shop ${cat.name}`;
-
-                  return (
-                    <Link
-                      key={cat.id}
-                      href={`/shop?category=${encodeURIComponent(cat.name)}`}
-                      className="group overflow-hidden rounded-2xl border border-[#0A0A0A]/15 bg-white transition-colors hover:border-[#0A0A0A]"
-                    >
-                      <div className="relative flex h-52 w-full items-center justify-center overflow-hidden sm:h-56">
-                        {image ? (
-                          <img
-                            src={image}
-                            alt={cat.name}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-[#0A0A0A]">
-                            <span className="text-lg font-black uppercase tracking-[0.2em] text-white">
-                              {cat.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="border-t border-[#0A0A0A]/15 p-4 sm:p-5">
-                        <div className="flex items-center justify-between gap-3">
-                          <h3 className="text-base font-bold uppercase tracking-wide text-[#0A0A0A] group-hover:underline">
-                            {cat.name}
-                          </h3>
-                          <span className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-[#0A0A0A] px-3 text-sm font-bold text-white">
-                            Shop
-                          </span>
-                        </div>
-                        <p className="mt-2 text-base leading-relaxed text-[#6B6B6B]">{blurb}</p>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Shop by brand — white */}
+        {/* 4. Shop by brand — white */}
         <section className="border-t border-[#0A0A0A]/10 bg-white text-[#0A0A0A]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
-            <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6B6B6B]">
-              Curated labels
-            </p>
-            <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide">
-              Shop by brand
-            </h2>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6B6B6B]">
+                  Authentic houses and partners
+                </p>
+                <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide">
+                  Shop by brand
+                </h2>
+              </div>
+              <Link
+                href="/shop"
+                className="inline-flex items-center min-h-11 px-5 rounded-lg text-sm font-bold uppercase tracking-widest transition-colors bg-[#0A0A0A] text-white hover:bg-[#0A0A0A]/90"
+              >
+                View all brands
+              </Link>
+            </div>
 
             <div className="mt-8">
               <BrandTiles />
@@ -223,7 +135,7 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Salmon financing — white */}
+        {/* 5. Salmon installment (white box) */}
         <section className="border-t border-[#0A0A0A]/10 bg-white text-[#0A0A0A]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
             <div className="rounded-2xl border border-[#0A0A0A]/15 p-6 sm:p-10 bg-white">
@@ -275,66 +187,32 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Trending (black) + New arrivals (white) */}
-        <ProductSections />
+        {/* 6. The Lazaroph promise (black) */}
+        <section className="bg-[#0A0A0A] text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+            <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#B3B3B3]">
+              Why shop here
+            </p>
+            <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide">
+              The LAZAROPH promise
+            </h2>
 
-        {/* Store info — white */}
-        <section className="border-t border-[#0A0A0A]/10 bg-white text-[#0A0A0A]">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 items-start gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:gap-12 py-14 sm:py-20">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6B6B6B]">
-                Visit us
-              </p>
-              <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide">
-                Store pickup in Marikina
-              </h2>
-              <p className="mt-4 max-w-xl text-base leading-relaxed text-[#6B6B6B]">
-                Order online and pick it up at our branch, have it delivered by Lalamove anywhere
-                in Metro Manila, or ship anywhere in the Philippines with LBC.
-              </p>
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/shop"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#0A0A0A] px-8 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-[#0A0A0A]/90 transition-colors"
-                >
-                  Continue shopping
-                </Link>
-                <Link
-                  href="/track-order"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#0A0A0A] px-8 py-3 text-sm font-black uppercase tracking-widest text-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white transition-colors"
-                >
-                  Track your order
-                </Link>
-              </div>
+            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {TRUST_POINTS.map((point) => (
+                <div key={point.title} className="flex flex-col gap-3">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#0A0A0A]">
+                    {point.icon}
+                  </span>
+                  <h3 className="text-lg font-black uppercase tracking-wide">{point.title}</h3>
+                  <p className="text-base leading-relaxed text-[#B3B3B3]">{point.body}</p>
+                </div>
+              ))}
             </div>
-
-            {branch && (
-              <div className="rounded-2xl bg-[#0A0A0A] p-6 text-white sm:p-8">
-                <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#B3B3B3]">
-                  Pickup branch
-                </p>
-                <h3 className="mt-3 text-lg font-black uppercase tracking-wide">{branch.name}</h3>
-                <address className="mt-4 space-y-3 not-italic">
-                  <p className="text-base leading-relaxed text-[#B3B3B3]">{branch.address}</p>
-                  <p className="text-base text-[#B3B3B3]">
-                    <span className="block text-xs font-bold uppercase tracking-widest text-white">
-                      Hours
-                    </span>
-                    {branch.hours}
-                  </p>
-                  <p className="text-base text-[#B3B3B3]">
-                    <span className="block text-xs font-bold uppercase tracking-widest text-white">
-                      Phone
-                    </span>
-                    {branch.phone}
-                  </p>
-                </address>
-              </div>
-            )}
           </div>
         </section>
       </main>
 
+      {/* 7. Footer (black) */}
       <SiteFooter />
     </div>
   );
