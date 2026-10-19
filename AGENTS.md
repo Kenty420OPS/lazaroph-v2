@@ -134,6 +134,14 @@ Store Settings and payment methods management.
 
 ## Current Mission
 
+### Admin brand logo upload (In progress)
+- Admin Brands page (components/BrandsSettings.tsx): each brand row has a logo file input (PNG/JPG/WebP), a preview of the current logo, and a per-row status message. Client compresses via lib/client-image.ts compressImage (Rule #1 — no direct Storage/Firestore access from the client).
+- New POST /api/admin/brands/[id]/logo: verifyAdminRequest, validateImageUpload magic-byte check (2MB cap, no server-side resize — decided: no sharp, reuse the existing pattern), save buffer as-is to brands/{brandId}/logo.{ext} via adminStorage (same shape as payment-methods/qr), set logoUrl + logoPath on the brand doc with file rollback on Firestore failure and best-effort delete of a previous file when the extension changes.
+- Public GET /api/brands now includes logoUrl (null when none). BrandTiles uses logoUrl as img src, then /images/brands/{slug}.png, then the brand name text (fetch/sorting/links unchanged).
+- storage.rules: public read + client write denied for brands/ (rule below, NOT deployed yet):
+  `match /brands/{allPaths=**} { allow read: if true; allow write: if false; }`
+- Branch feature/admin-brand-logo, not committed yet.
+
 ### Brand logos (In progress)
 - Shop by brand tiles on the homepage show the brand logo from /images/brands/{slug}.png when a file exists (slug = lowercase, spaces -> hyphens, only a-z 0-9 -; e.g. "New Balance" -> new-balance.png).
 - Only components/home/BrandTiles.tsx changed: a per-tile BrandTileLink component renders the image (max-h-10, max-w-[80%], object-contain, alt = brand name); onError falls back to the existing brand-name text. Hover inverts the logo via group-hover:invert to match the inverted tile.

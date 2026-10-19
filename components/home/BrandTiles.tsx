@@ -11,6 +11,9 @@ import { useEffect, useState } from "react";
 interface BrandTile {
   id: string;
   name: string;
+  // Optional: present when an admin uploaded a logo through the admin Brands
+  // page (public GET /api/brands). Legacy product-derived brands have none.
+  logoUrl?: string | null;
 }
 
 // "New Balance" -> "new-balance". Logo files under /images/brands are named
@@ -23,23 +26,27 @@ function slugify(name: string): string {
     .replace(/[^a-z0-9-]/g, "");
 }
 
-// One brand tile. Shows the logo from /images/brands/{slug}.png when the file
-// exists; if it 404s (onError), falls back to the brand name as text.
+// One brand tile. Shows the uploaded brand logo (logoUrl from the admin
+// Brands page) when there is one; otherwise the static
+// /images/brands/{slug}.png file. If the src 404s (onError) it steps down the
+// chain — logoUrl -> static file -> brand name as text.
 function BrandTileLink({ brand }: { brand: BrandTile }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const logoSrc = `/images/brands/${slugify(brand.name)}.png`;
+  const [stage, setStage] = useState<0 | 1 | 2>(brand.logoUrl ? 0 : 1);
+  const slugSrc = `/images/brands/${slugify(brand.name)}.png`;
+  const src = stage === 0 && brand.logoUrl ? brand.logoUrl : slugSrc;
 
   return (
     <Link
       href="/shop"
       className="group flex items-center justify-center min-h-16 px-4 py-4 rounded-xl border border-[#0A0A0A] bg-white text-center hover:bg-[#0A0A0A] transition-colors"
     >
-      {!logoFailed ? (
+      {stage < 2 ? (
         // Black logo on white; inverted to white on hover to match the tile.
         <img
-          src={logoSrc}
+          key={src}
+          src={src}
           alt={brand.name}
-          onError={() => setLogoFailed(true)}
+          onError={() => setStage((s) => (s === 0 && brand.logoUrl ? 1 : 2))}
           className="max-h-10 max-w-[80%] object-contain group-hover:invert transition-[filter]"
         />
       ) : (
