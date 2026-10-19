@@ -134,6 +134,12 @@ Store Settings and payment methods management.
 
 ## Current Mission
 
+### Brand logos (In progress)
+- Shop by brand tiles on the homepage show the brand logo from /images/brands/{slug}.png when a file exists (slug = lowercase, spaces -> hyphens, only a-z 0-9 -; e.g. "New Balance" -> new-balance.png).
+- Only components/home/BrandTiles.tsx changed: a per-tile BrandTileLink component renders the image (max-h-10, max-w-[80%], object-contain, alt = brand name); onError falls back to the existing brand-name text. Hover inverts the logo via group-hover:invert to match the inverted tile.
+- Tile stays min-h-16 with a 1px black border and white background. Fetch logic, product fallback, sorting and /shop links unchanged. Files present: anta, casio, new-balance, nike, seiko.
+- Branch feature/brand-logos, not committed yet.
+
 ### Storefront design (Done)
 - Homepage only (presentation only, no behaviour or data-fetching changes). White and black only: #0A0A0A / #FFFFFF, secondary text #6B6B6B on white and #B3B3B3 on black.
 - app/page.tsx rebuilt with the sections in order: hero (logo on a white tile), trust points, featured categories, shop by brand, trending, new arrivals, store info, footer — alternating black/white as specified.
