@@ -13,6 +13,44 @@ interface BrandTile {
   name: string;
 }
 
+// "New Balance" -> "new-balance". Logo files under /images/brands are named
+// with this slug (anta.png, new-balance.png, ...).
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+// One brand tile. Shows the logo from /images/brands/{slug}.png when the file
+// exists; if it 404s (onError), falls back to the brand name as text.
+function BrandTileLink({ brand }: { brand: BrandTile }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const logoSrc = `/images/brands/${slugify(brand.name)}.png`;
+
+  return (
+    <Link
+      href="/shop"
+      className="group flex items-center justify-center min-h-16 px-4 py-4 rounded-xl border border-[#0A0A0A] bg-white text-center hover:bg-[#0A0A0A] transition-colors"
+    >
+      {!logoFailed ? (
+        // Black logo on white; inverted to white on hover to match the tile.
+        <img
+          src={logoSrc}
+          alt={brand.name}
+          onError={() => setLogoFailed(true)}
+          className="max-h-10 max-w-[80%] object-contain group-hover:invert transition-[filter]"
+        />
+      ) : (
+        <span className="text-sm font-black uppercase tracking-widest break-words text-[#0A0A0A] group-hover:text-white transition-colors">
+          {brand.name}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export default function BrandTiles() {
   const [brands, setBrands] = useState<BrandTile[] | null>(null);
 
@@ -88,15 +126,7 @@ export default function BrandTiles() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
       {brands.map((brand) => (
-        <Link
-          key={brand.id}
-          href="/shop"
-          className="group flex items-center justify-center min-h-16 px-4 py-4 rounded-xl border border-[#0A0A0A] bg-white text-center hover:bg-[#0A0A0A] transition-colors"
-        >
-          <span className="text-sm font-black uppercase tracking-widest break-words text-[#0A0A0A] group-hover:text-white transition-colors">
-            {brand.name}
-          </span>
-        </Link>
+        <BrandTileLink key={brand.id} brand={brand} />
       ))}
     </div>
   );
