@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
-import AuthMenu from "@/components/AuthMenu";
+import SiteHeader from "@/components/home/SiteHeader";
+import SiteFooter from "@/components/home/SiteFooter";
 import { hasValidDiscount, getChargedPrice, SIZE_SYSTEM_NAMES } from "@/lib/product";
 
 interface Product {
@@ -27,7 +28,7 @@ interface Product {
 }
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const { addToCart, cartCount } = useCart();
+  const { addToCart } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [notFound, setNotFound] = useState<boolean>(false);
@@ -84,41 +85,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   return (
     <div className="min-h-screen bg-black text-neutral-100 flex flex-col font-sans selection:bg-white selection:text-black">
       {/* Top Header / Navigation */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-black/90 border-b border-neutral-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/shop" className="flex items-center space-x-3 group">
-            <div className="w-9 h-9 rounded-xl bg-white text-black font-black flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <span className="text-lg">L</span>
-            </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-white group-hover:text-neutral-300 transition-colors">
-                LAZAROPH
-              </span>
-              <p className="text-xs text-neutral-400 hidden sm:block">AUTHENTIC. LEGIT. BELOW MARKET PRICE.</p>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link
-              href="/shop"
-              className="hidden sm:inline-flex text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm"
-            >
-              Public Catalog
-            </Link>
-            <Link href="/cart" className="relative p-2 text-white hover:text-neutral-300 transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              {cartCount > 0 && (
-                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-            <AuthMenu />
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -387,9 +354,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-neutral-800 bg-black py-6 text-center text-xs text-neutral-500">
-        <p>© 2026 LAZAROPH — AUTHENTIC. LEGIT. BELOW MARKET PRICE. Retail Platform. All rights reserved.</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

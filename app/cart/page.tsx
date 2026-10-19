@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
-import AuthMenu from "@/components/AuthMenu";
+import SiteHeader from "@/components/home/SiteHeader";
+import SiteFooter from "@/components/home/SiteFooter";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -27,29 +28,10 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-neutral-800">
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-black/90 border-b border-neutral-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/shop" className="flex items-center space-x-3 group">
-            <div className="w-9 h-9 rounded-xl bg-white text-black font-black flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <span className="text-lg">L</span>
-            </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-white group-hover:text-neutral-300 transition-colors">
-                LAZAROPH
-              </span>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/shop" className="hidden sm:inline-flex text-xs font-bold px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors shadow-sm">
-              Continue Shopping
-            </Link>
-            <AuthMenu />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-black text-white flex flex-col selection:bg-neutral-800">
+      <SiteHeader />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
         <h1 className="text-3xl font-black tracking-tight mb-8">YOUR CART</h1>
 
         {cartCount === 0 ? (
@@ -229,6 +211,8 @@ export default function CartPage() {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

@@ -3,6 +3,8 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import SiteHeader from "@/components/home/SiteHeader";
+import SiteFooter from "@/components/home/SiteFooter";
 import { auth } from "@/lib/firebase";
 import {
   GoogleAuthProvider,
@@ -74,11 +76,10 @@ function SignInForm() {
 
   return (
     <div className="min-h-screen bg-black text-neutral-100 flex flex-col font-sans selection:bg-white selection:text-black">
+      <SiteHeader />
+
       <main className="flex-1 w-full max-w-md mx-auto px-4 py-12">
         <div className="mb-8 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-white text-black font-black flex items-center justify-center shadow-md mx-auto mb-4">
-            <span className="text-xl">L</span>
-          </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-white uppercase">
             Sign in
           </h1>
@@ -172,9 +173,7 @@ function SignInForm() {
         </div>
       </main>
 
-      <footer className="mt-auto border-t border-neutral-800 bg-black py-6 text-center text-xs text-neutral-500">
-        <p>© 2026 LAZAROPH — AUTHENTIC. LEGIT. BELOW MARKET PRICE.</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
