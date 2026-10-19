@@ -164,7 +164,7 @@ Store Settings and payment methods management.
 - Hero: full-width black section (min-h-[560px], min 80vh on desktop) with dynamic grayscale product cover image and 60% black overlay, centered eyebrow, headline, subline, and "Shop now" / "Explore categories" buttons to /shop. (Cover image replaced by the solid black logo hero below.)
 
 ### Hero solid black (In progress)
-- components/home/Hero.tsx is now presentation only: solid #0A0A0A background, no product image, no fetch to /api/products, no getCoverUrl import, no client hooks.
+- components/home/Hero.tsx is now presentation only: solid white background, black text, no product image, no fetch to /api/products, no getCoverUrl import, no client hooks.
 - Centered layout: /images/logo.png on the existing white tile (rounded-2xl, p-6, 120px mobile / 160px desktop), "EST. 2016 • MARIKINA" eyebrow with thin rules (#B3B3B3, tracking-widest), headline "Authentic. Legit. Below Market Price." at 30/48/60px, subline at 16/18px, and "Shop now" / "Explore categories" buttons (min-h-11, stacked on mobile, side by side on sm+).
 - Section py-20 mobile / py-28 desktop, min-h-[560px]; black and white only. Branch feature/hero-solid-black (based on feature/header-hero, since Hero.tsx is not on main yet).
 
