@@ -201,6 +201,7 @@ Store Settings and payment methods management.
 - components/home/SiteHeader.tsx uses HEADER_NAV for the desktop and mobile lists (the old local NAV_LINKS with Sneakers/Apparel is gone); components/home/SiteFooter.tsx Shop column uses FOOTER_SHOP_NAV (Customer and Visit us unchanged); app/shop/page.tsx prints STOREFRONT_CATEGORIES and STOREFRONT_GENDERS as pills, with "All" still first in each row. The ?category= guard still uses PRODUCT_CATEGORIES from lib/product.ts so the wider fallback list cannot leak into the filter; fetch, sort, search and all API routes untouched (Step 1 of 4, no brand filtering yet).
 - Shop pills now carry inline-flex min-h-11 (44px), matching the AuthMenu decision from the Storefront design mission. Verified headless at 375px, 768px and 1280px: no horizontal page overflow, no sub-44px tap target in the header/footer/pills, correct labels and hrefs everywhere.
 - npm run build and npx tsc --noEmit pass. Branch feature/storefront-nav, not committed yet.
+- Desktop nav spacing reduced so links do not overlap the logo at lg ("New arrivals" hidden below xl so all 7 links fit at 1024px).
 
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
