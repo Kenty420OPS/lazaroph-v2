@@ -1,18 +1,6 @@
 import Link from "next/link";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
-
-const SHOP_LINKS = [
-  { label: "Men", href: "/shop?gender=Men" },
-  { label: "Women", href: "/shop?gender=Women" },
-  { label: "Kids", href: "/shop?gender=Kids" },
-  { label: "Sneakers", href: "/shop?category=Sneakers" },
-  { label: "Basketball Shoes", href: "/shop?category=Basketball%20Shoes" },
-  { label: "Bags & Luggage", href: "/shop?category=Bags%20%26%20Luggage" },
-  { label: "Watches", href: "/shop?category=Watches" },
-  { label: "Slides", href: "/shop?category=Slides" },
-  { label: "Apparel", href: "/shop?category=Apparel" },
-  { label: "New Arrivals", href: "/shop" },
-];
+import { FOOTER_SHOP_NAV } from "@/lib/storefront-nav";
 
 const CUSTOMER_LINKS = [
   { label: "Track order", href: "/track-order" },
@@ -46,7 +34,7 @@ export default function SiteFooter() {
           <nav aria-label="Shop">
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-white">Shop</h2>
             <ul className="mt-2 space-y-1">
-              {SHOP_LINKS.map((link) => (
+              {FOOTER_SHOP_NAV.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
