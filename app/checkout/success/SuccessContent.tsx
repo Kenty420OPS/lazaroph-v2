@@ -14,20 +14,20 @@ export default function SuccessContent() {
 
   return (
     <div className="max-w-md w-full text-center space-y-6">
-      <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/20">
+      <div className="w-20 h-20 bg-[#0A0A0A] text-white rounded-full flex items-center justify-center mx-auto mb-6 border border-[#0A0A0A]">
         <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
         </svg>
       </div>
 
-      <h1 className="text-3xl font-black tracking-tight">ORDER RECEIVED!</h1>
+      <h1 className="text-3xl font-black tracking-tight text-[#0A0A0A]">ORDER RECEIVED!</h1>
 
-      <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800 space-y-4 text-sm text-neutral-300">
+      <div className="bg-white p-6 rounded-xl border border-[#0A0A0A]/10 space-y-4 text-sm text-[#0A0A0A]">
         <p>
-          Thank you for ordering from <span className="font-bold text-white">LAZAROPH v2</span>.
+          Thank you for ordering from <span className="font-bold text-[#0A0A0A]">LAZAROPH v2</span>.
         </p>
-        <p className="px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white font-medium flex flex-col gap-1">
-          <span className="text-xs text-neutral-400">Status:</span>
+        <p className="px-4 py-3 bg-[#0A0A0A]/5 border border-[#0A0A0A]/10 rounded-lg text-[#0A0A0A] font-medium flex flex-col gap-1">
+          <span className="text-xs text-[#6B6B6B]">Status:</span>
           <span>PENDING PAYMENT</span>
         </p>
         {orderId && (
@@ -35,7 +35,7 @@ export default function SuccessContent() {
             <CopyOrderId orderId={orderId} />
             <Link
               href={`/track-order?orderId=${orderId}`}
-              className="text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white underline underline-offset-4 decoration-neutral-600 transition-colors"
+              className="inline-flex items-center justify-center min-h-11 text-xs font-bold uppercase tracking-wider text-[#6B6B6B] hover:text-[#0A0A0A] underline underline-offset-4 decoration-[#0A0A0A]/30 transition-colors"
             >
               Track This Order &rarr;
             </Link>
@@ -61,7 +61,7 @@ export default function SuccessContent() {
       <div className="pt-6">
         <Link
           href="/shop"
-          className="px-8 py-4 bg-white text-black font-black uppercase tracking-widest rounded-lg hover:bg-neutral-200 transition-colors inline-block"
+          className="inline-flex items-center justify-center min-h-11 px-8 py-4 bg-[#0A0A0A] text-white font-black uppercase tracking-widest rounded-lg hover:bg-[#0A0A0A]/90 transition-colors"
         >
           Continue Shopping
         </Link>

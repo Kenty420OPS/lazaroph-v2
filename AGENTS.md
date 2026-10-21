@@ -219,10 +219,10 @@ Store Settings and payment methods management.
 - Text sizes unchanged — the pre-existing 10px card labels (category badge, brand, "Price") and the 11px detail-page chips are still there.
 - npx tsc --noEmit and npm run build pass. Branch feature/white-storefront-shop, not committed yet.
 
-### Shop brand tiles (In progress)
+### Shop brand tiles (Done)
 - /shop shows "Authentic houses and partners" / "Shop by brand" with BrandTiles between the filter bar and the product grid, only when no brand filter is active (hidden when a brand is selected; brand header remains). app/shop/page.tsx only, BrandTiles.tsx unchanged. No text below 12px, 44px tap targets maintained.
 
-### White storefront: cart and track order (In progress)
+### White storefront: cart and track order (Done)
 - /cart and /track-order switched from the dark theme to the same white palette as /shop and /shop/[id]: #0A0A0A on white, #6B6B6B secondary text, #FFFFFF surfaces. Presentation only — no change to cart/quantity logic, totals, track-order lookup, status steps or routing. Only app/cart/page.tsx and app/track-order/page.tsx changed; SiteHeader and SiteFooter stay black.
 - Cart page: white wrapper and main, white empty-state box on #0A0A0A/5 with a #0A0A0A/10 border, black "Browse the Catalog" and "Proceed to Checkout" buttons, white cart rows / order-summary panel / recent-order cards with a #0A0A0A/10 border, quantity stepper outlined in #0A0A0A/20, "Remove" and "Track Status" outlined in #0A0A0A, "Clear history" in #6B6B6B. The red "Remove"/"Clear history" hover states were dropped to stay black and white only.
 - Track order: white form / status / summary / details panels with a #0A0A0A/10 border, white inputs with a #0A0A0A/20 border and #6B6B6B placeholders, black "Track Order" submit, outlined "Track Another Order" / "Refresh Status", error and cancelled boxes on #0A0A0A/5, completed steps as a black circle with white text and the upcoming step as #0A0A0A/5 with #6B6B6B text, progress line #0A0A0A over a #0A0A0A/10 track.
@@ -230,6 +230,15 @@ Store Settings and payment methods management.
 - Content audit: the page content of both pages renders only #0A0A0A, #FFFFFF, #6B6B6B and #0A0A0A at 5/10/20% opacity — no other colour is used (the #B3B3B3 / neutral tones that remain come from the black SiteHeader / SiteFooter / AuthMenu, which are out of scope).
 - Pre-existing text below 12px, left unchanged and reported: the cart "Order ID" label, the order date and the "Total" label in the recent-orders card are still text-[10px]. The track-order page has no text below 12px.
 - npx tsc --noEmit and npm run build pass (lint skipped). Branch feature/white-storefront-cart-track, not committed yet. Note: the local .env.local Admin credentials return UNAUTHENTICATED against Firestore, so the order-found state was verified with a mocked /api/track-order response and the error state with the real route.
+
+### White storefront: checkout success (Done)
+- /checkout/success switched from the dark theme to the same white palette as /cart and /track-order: #0A0A0A on white, #6B6B6B secondary text, #FFFFFF surfaces. Presentation only — no change to the orderId/courier/pickup logic, the links, the copy behavior, the query-param handling or the routing. Only app/checkout/success/page.tsx, SuccessContent.tsx and CopyOrderId.tsx changed; SiteHeader and SiteFooter stay black and were already present on the page.
+- page.tsx: wrapper and main are bg-white text-[#0A0A0A], the Suspense fallback text is #6B6B6B. The page still prerenders as static (○).
+- SuccessContent.tsx: the success icon is now a black circle with a white check (bg-[#0A0A0A] text-white border-[#0A0A0A]) instead of the old green one — the only green on the page is gone and no red was added. White card with a #0A0A0A/10 border, the status box on #0A0A0A/5 with a #0A0A0A/10 border, the "LAZAROPH v2" span and the h1 in #0A0A0A, the "Status:" label in #6B6B6B, the "Track This Order →" link in #6B6B6B (hover #0A0A0A, underline decoration #0A0A0A/30) with min-h-11, and the "Continue Shopping" button is black on white (bg-[#0A0A0A] text-white, hover #0A0A0A/90) with min-h-11.
+- CopyOrderId.tsx: the order-ID box is #0A0A0A/5 with a #0A0A0A/10 border so it stays visible inside the white card, the label is text-xs #6B6B6B, and the Copy button is black on white (bg-[#0A0A0A] text-white) with min-h-11 min-w-11.
+- The Copy button was text-[10px] (about 24px tall) and is now text-xs with a 44px target, because this mission's rule is text 12px+ and tap targets 44px+. The long order ID still truncates inside its box (the 36-char UUID is cut with an ellipsis at 375px) and does not overflow.
+- Verified headless at 375px and 768px on three variants (no params, orderId + courier=LBC, orderId + courier=Pickup + branchName): no horizontal overflow (scrollWidth == clientWidth), no tap target under 44px, no text under 12px, and the content of main renders only #0A0A0A, #FFFFFF, #6B6B6B and #0A0A0A at 5/10/30% opacity — no other colour (the neutral tones that remain come from the black SiteHeader / SiteFooter / AuthMenu, which are out of scope). The Copy button still flips to "Copied!" on click.
+- npx tsc --noEmit and npm run build pass (lint skipped). Branch feature/white-storefront-success, not committed yet.
 
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.

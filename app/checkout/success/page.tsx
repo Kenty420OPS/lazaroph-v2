@@ -8,11 +8,11 @@ import SuccessContent from "./SuccessContent";
 // which allows Next.js to statically pre-render this shell (○).
 export default function CheckoutSuccessPage() {
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Suspense fallback={<div className="text-neutral-500 text-sm">Loading...</div>}>
+      <main className="flex-1 flex items-center justify-center p-4 bg-white text-[#0A0A0A]">
+        <Suspense fallback={<div className="text-[#6B6B6B] text-sm">Loading...</div>}>
           <SuccessContent />
         </Suspense>
       </main>
