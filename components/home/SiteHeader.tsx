@@ -35,12 +35,14 @@ export default function SiteHeader() {
           </button>
 
           {/* Desktop links */}
-          <nav aria-label="Main Navigation" className="hidden lg:flex items-center gap-4 xl:gap-6">
+          <nav aria-label="Main Navigation" className="hidden lg:flex items-center gap-3 xl:gap-4">
             {HEADER_NAV.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
-                className="text-xs font-bold uppercase tracking-widest text-[#B3B3B3] hover:text-white transition-colors whitespace-nowrap min-h-11 inline-flex items-center"
+                className={`text-xs font-bold uppercase tracking-wide text-[#B3B3B3] hover:text-white transition-colors whitespace-nowrap min-h-11 items-center ${
+                  link.label === "New arrivals" ? "hidden xl:inline-flex" : "inline-flex"
+                }`}
               >
                 {link.label}
               </Link>
