@@ -190,6 +190,12 @@ Store Settings and payment methods management.
 - Not done in this branch: the "Official Storefront" hero on /shop is untouched (flagged for a later pass).
 - Branch feature/storefront-consistency, not committed yet. Owner browser verification at 375px / 768px pending.
 
+### Shop hero (In progress)
+- /shop: the rounded "OFFICIAL STOREFRONT" banner box (bg-neutral-900 pill + tagline headline + grey subline) replaced with a plain title block — eyebrow "Inventory" (text-xs, font-bold, uppercase, tracking-widest, #6B6B6B) and h1 "Shop all" (text-3xl sm:text-4xl, font-black, uppercase, tracking-wide, text-white), wrapped in a div with mb-8. Black and white only, no box/border/background.
+- app/shop/page.tsx only; filters, search, sort, grid, fetch and all logic untouched.
+- Verified headless at 375px and 768px: no horizontal overflow (scrollWidth == clientWidth, no offending elements), title block renders as specified, old banner gone. Pre-existing 10px product-card text (category badge, brand, "Price") is unchanged — outside this mission.
+- npx tsc --noEmit and npm run build pass. Branch feature/shop-hero, not committed yet.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
