@@ -163,19 +163,14 @@ function ShopPageContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Banner Hero */}
-        <div className="relative rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 p-6 sm:p-10 mb-8 backdrop-blur-sm">
-          <div className="max-w-2xl">
-            <span className="inline-block text-xs font-bold tracking-wider uppercase text-neutral-300 bg-neutral-800 px-3 py-1 rounded-full border border-neutral-700 mb-3">
-              Official Storefront
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase">
-              AUTHENTIC. LEGIT. BELOW MARKET PRICE.
-            </h1>
-            <p className="mt-2 text-sm sm:text-base text-neutral-400">
-              Browse our curated collection of original sneakers, premium bags, and luxury watches directly sourced and verified.
-            </p>
-          </div>
+        {/* Page Title */}
+        <div className="mb-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#6B6B6B]">
+            Inventory
+          </p>
+          <h1 className="mt-2 text-3xl sm:text-4xl font-black uppercase tracking-wide text-white">
+            Shop all
+          </h1>
         </div>
 
         {/* Filter Controls & Search */}
