@@ -56,6 +56,10 @@ function ShopPageContent() {
     const param = searchParams.get("gender");
     return param && (STOREFRONT_GENDERS as readonly string[]).includes(param) ? param : "All";
   });
+  const [selectedBrand, setSelectedBrand] = useState<string>(() => {
+    const param = searchParams.get("brand");
+    return param && param.trim().length > 0 ? param.trim() : "All";
+  });
 
   // Fetch products exclusively through the API Route Handler (/api/products)
   // Strict compliance with AGENTS.md Rule #1: No direct Firestore calls in client components.
@@ -67,6 +71,7 @@ function ShopPageContent() {
       const params = new URLSearchParams();
       if (selectedCategory !== "All") params.append("category", selectedCategory);
       if (selectedGender !== "All") params.append("gender", selectedGender);
+      if (selectedBrand !== "All") params.append("brand", selectedBrand);
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
 
       const res = await fetch(`/api/products?${params.toString()}`);
@@ -135,7 +140,7 @@ function ShopPageContent() {
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory, selectedGender]);
+  }, [selectedCategory, selectedGender, selectedBrand]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +247,35 @@ function ShopPageContent() {
             </select>
           </div>
         </div>
+
+        {/* Brand Header (only when a brand filter is active) */}
+        {selectedBrand !== "All" && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#6B6B6B]">
+                Brand collection
+              </p>
+              <h2 className="mt-2 text-2xl sm:text-3xl font-black uppercase tracking-wide text-white break-words">
+                {selectedBrand}
+              </h2>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {!loading && (
+                <span className="text-sm text-[#B3B3B3]">
+                  Showing {sortedProducts.length} products
+                </span>
+              )}
+              <Link
+                href="/shop"
+                onClick={() => setSelectedBrand("All")}
+                className="inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg border border-white text-white text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black transition-colors whitespace-nowrap"
+              >
+                Clear brand filter
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Product Grid */}
         {loading ? (

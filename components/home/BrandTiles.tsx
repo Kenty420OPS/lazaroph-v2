@@ -37,7 +37,7 @@ function BrandTileLink({ brand }: { brand: BrandTile }) {
 
   return (
     <Link
-      href="/shop"
+      href={`/shop?brand=${encodeURIComponent(brand.name)}`}
       className="group flex items-center justify-center min-h-16 px-4 py-4 rounded-xl border border-[#0A0A0A] bg-white text-center hover:bg-[#0A0A0A] transition-colors"
     >
       {stage < 2 ? (
