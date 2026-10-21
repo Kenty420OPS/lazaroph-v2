@@ -4,14 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import AuthMenu from "@/components/AuthMenu";
-
-const NAV_LINKS = [
-  { label: "New arrivals", href: "/shop?sort=newest" },
-  { label: "Sneakers", href: "/shop?category=Sneakers" },
-  { label: "Apparel", href: "/shop?category=Apparel" },
-  { label: "Slides", href: "/shop?category=Slides" },
-  { label: "Watches", href: "/shop?category=Watches" },
-];
+import { HEADER_NAV } from "@/lib/storefront-nav";
 
 export default function SiteHeader() {
   const { cartCount } = useCart();
@@ -43,7 +36,7 @@ export default function SiteHeader() {
 
           {/* Desktop links */}
           <nav aria-label="Main Navigation" className="hidden lg:flex items-center gap-4 xl:gap-6">
-            {NAV_LINKS.map((link) => (
+            {HEADER_NAV.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
@@ -116,7 +109,7 @@ export default function SiteHeader() {
           aria-label="Mobile Navigation Menu"
           className="lg:hidden bg-[#0A0A0A] border-t border-white/10 px-4 py-3 space-y-1"
         >
-          {NAV_LINKS.map((link) => (
+          {HEADER_NAV.map((link) => (
             <Link
               key={link.label}
               href={link.href}

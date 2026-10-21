@@ -8,6 +8,7 @@ import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
 import { hasValidDiscount, getChargedPrice, PRODUCT_CATEGORIES } from "@/lib/product";
 import { CATEGORY_NAME_MAX } from "@/lib/categories";
+import { STOREFRONT_CATEGORIES, STOREFRONT_GENDERS } from "@/lib/storefront-nav";
 
 interface Product {
   id: string;
@@ -28,10 +29,7 @@ interface Product {
 }
 
 // Fallback used for the pills until (or unless) /api/categories loads.
-const FALLBACK_CATEGORIES: string[] = [...PRODUCT_CATEGORIES];
-
-// Gender pills are fixed (do not come from a managed list).
-const GENDER_FILTERS = ["Men", "Women", "Kids"] as const;
+const FALLBACK_CATEGORIES: string[] = [...STOREFRONT_CATEGORIES];
 
 export default function ShopPage() {
   return (
@@ -56,7 +54,7 @@ function ShopPageContent() {
   const [sortBy, setSortBy] = useState<string>("default");
   const [selectedGender, setSelectedGender] = useState<string>(() => {
     const param = searchParams.get("gender");
-    return param && (GENDER_FILTERS as readonly string[]).includes(param) ? param : "All";
+    return param && (STOREFRONT_GENDERS as readonly string[]).includes(param) ? param : "All";
   });
 
   // Fetch products exclusively through the API Route Handler (/api/products)
@@ -89,7 +87,7 @@ function ShopPageContent() {
 
   // Fetch the managed category list once on mount, through the API Route
   // Handler only (AGENTS.md Rule #1). When it fails or comes back empty we
-  // keep the PRODUCT_CATEGORIES fallback so the pills are never empty.
+  // keep the STOREFRONT_CATEGORIES fallback so the pills are never empty.
   useEffect(() => {
     let cancelled = false;
 
@@ -110,7 +108,7 @@ function ShopPageContent() {
         if (cancelled) return;
 
         // If the response was successful but every category is disabled,
-        // use an empty list (do not fall back to PRODUCT_CATEGORIES).
+        // use an empty list (do not fall back to STOREFRONT_CATEGORIES).
         setCategoryNames(names);
         // A ?category= value that is not in the enabled list is reset to "All".
         setSelectedCategory((current) =>
@@ -119,7 +117,8 @@ function ShopPageContent() {
       } catch {
         if (cancelled) return;
 
-        // Fallback pills stay; validate the ?category= param against them.
+        // Fallback pills stay; validate the ?category= param against the
+        // known product categories (filter logic unchanged).
         setSelectedCategory((current) =>
           current === "All" || (PRODUCT_CATEGORIES as readonly string[]).includes(current)
             ? current
@@ -182,7 +181,7 @@ function ShopPageContent() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
                     selectedCategory === cat
                       ? "bg-white text-black shadow-md"
                       : "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
@@ -195,11 +194,11 @@ function ShopPageContent() {
 
             {/* Gender Pills */}
             <div className="flex items-center gap-2 whitespace-nowrap border-l border-neutral-800 pl-4">
-              {["All", ...GENDER_FILTERS].map((gender) => (
+              {["All", ...STOREFRONT_GENDERS].map((gender) => (
                 <button
                   key={gender}
                   onClick={() => setSelectedGender(gender)}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
                     selectedGender === gender
                       ? "bg-white text-black shadow-md"
                       : "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
