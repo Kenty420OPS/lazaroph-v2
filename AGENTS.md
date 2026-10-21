@@ -219,6 +219,9 @@ Store Settings and payment methods management.
 - Text sizes unchanged — the pre-existing 10px card labels (category badge, brand, "Price") and the 11px detail-page chips are still there.
 - npx tsc --noEmit and npm run build pass. Branch feature/white-storefront-shop, not committed yet.
 
+### Shop brand tiles (In progress)
+- /shop shows "Authentic houses and partners" / "Shop by brand" with BrandTiles between the filter bar and the product grid, only when no brand filter is active (hidden when a brand is selected; brand header remains). app/shop/page.tsx only, BrandTiles.tsx unchanged. No text below 12px, 44px tap targets maintained.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
+import BrandTiles from "@/components/home/BrandTiles";
 import { hasValidDiscount, getChargedPrice, PRODUCT_CATEGORIES } from "@/lib/product";
 import { CATEGORY_NAME_MAX } from "@/lib/categories";
 import { STOREFRONT_CATEGORIES, STOREFRONT_GENDERS } from "@/lib/storefront-nav";
@@ -273,6 +274,21 @@ function ShopPageContent() {
               >
                 Clear brand filter
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Shop by brand (only when no brand filter is active) */}
+        {selectedBrand === "All" && (
+          <div className="mb-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#6B6B6B]">
+              Authentic houses and partners
+            </p>
+            <h2 className="mt-2 text-xl sm:text-2xl font-black uppercase tracking-wide text-[#0A0A0A]">
+              Shop by brand
+            </h2>
+            <div className="mt-4">
+              <BrandTiles />
             </div>
           </div>
         )}
