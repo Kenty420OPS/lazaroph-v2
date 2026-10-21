@@ -210,6 +210,15 @@ Store Settings and payment methods management.
 - Verified locally (production build, headless Chrome): /shop?brand=Adidas shows the header and 2 products, clear button resets to /shop with the full catalog; 375px and 768px have no horizontal overflow, the new button is 44px tall and no new text is below 12px. Pre-existing 10px product-card text and the sub-44px search input/select are unchanged.
 - Branch feature/brand-filter, not committed yet. Hiding brands with no products is a separate step.
 
+### White storefront: shop and product (In progress)
+- /shop and /shop/[id] switched from the dark theme to the homepage palette: #0A0A0A on white, #6B6B6B secondary text, #FFFFFF surfaces. Presentation only — no change to fetches, filters, sort, search, cart, sizing or routing. Only app/shop/page.tsx and app/shop/[id]/page.tsx changed; SiteHeader and SiteFooter stay black.
+- Shop page: white wrapper and <main>, title block and brand header in #0A0A0A/#6B6B6B, "Clear brand filter" outlined in #0A0A0A (hover fills it), white filter bar with a #0A0A0A/10 border, active pills black on white, inactive pills white with a #0A0A0A/20 border (hover #0A0A0A/5), white search input and sort select, white product cards with a #0A0A0A/10 border, black category badge, black "Select size" and "Add to Cart" buttons, skeletons and empty/error states on #0A0A0A/5.
+- Product page: white gallery with a #0A0A0A/10 border, thumbnails #0A0A0A/20 (active #0A0A0A), brand #6B6B6B, name and price #0A0A0A, SKU/gender/subcategory chips white with a #0A0A0A/20 border, size buttons black when selected, black "Add to Cart" (disabled #0A0A0A/30), description headings #0A0A0A and body #6B6B6B.
+- The only non black-and-white colour left on these two pages (the red "Sold out" text) is now #6B6B6B.
+- Tap targets: the card "Select size"/"Add to Cart"/"Sold out" buttons, the "Try Again" and "Back to shop" buttons and the "Back to shop" link got min-h-11 (44px). Verified headless at 375px and 768px on /shop, /shop?brand=Adidas and /shop/[id]: no horizontal overflow and no tap target under 44px.
+- Text sizes unchanged — the pre-existing 10px card labels (category badge, brand, "Price") and the 11px detail-page chips are still there.
+- npx tsc --noEmit and npm run build pass. Branch feature/white-storefront-shop, not committed yet.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
