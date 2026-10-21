@@ -203,6 +203,13 @@ Store Settings and payment methods management.
 - npm run build and npx tsc --noEmit pass. Branch feature/storefront-nav, not committed yet.
 - Desktop nav spacing reduced so links do not overlap the logo at lg ("New arrivals" hidden below xl so all 7 links fit at 1024px).
 
+### Brand filter (In progress)
+- /api/products accepts ?brand= next to ?category= and ?gender= and keeps only products whose brand field, trimmed and lowercased, equals the param (trimmed, lowercased) — exact match, case-insensitive. "All" passes everything through. Category and gender logic unchanged.
+- /shop reads ?brand= from the URL (same way selectedGender is read) and sends it to /api/products. When a brand is active a brand header appears above the product grid: eyebrow "Brand collection" (text-xs, font-bold, uppercase, tracking-widest, #6B6B6B), brand name (text-2xl sm:text-3xl, font-black, uppercase, text-white), "Showing N products" (text-sm, #B3B3B3) and a "Clear brand filter" button (min-h-11, outlined white, links to /shop). Nothing new renders when no brand is active; category/gender pills, search, sort and grid are unchanged.
+- components/home/BrandTiles.tsx: each tile links to /shop?brand=<encodeURIComponent(brand.name)>. Fetch logic, sorting and the logo/name fallback unchanged.
+- Verified locally (production build, headless Chrome): /shop?brand=Adidas shows the header and 2 products, clear button resets to /shop with the full catalog; 375px and 768px have no horizontal overflow, the new button is 44px tall and no new text is below 12px. Pre-existing 10px product-card text and the sub-44px search input/select are unchanged.
+- Branch feature/brand-filter, not committed yet. Hiding brands with no products is a separate step.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.

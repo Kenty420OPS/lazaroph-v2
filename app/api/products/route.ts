@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const categoryParam = searchParams.get("category");
     const genderParam = searchParams.get("gender");
+    const brandParam = searchParams.get("brand");
     const searchParam = searchParams.get("search");
 
     const querySnapshot = await getDocs(collection(db, "products"));
@@ -41,6 +42,15 @@ export async function GET(request: Request) {
       products = products.filter((p) => {
         const pGender = (p.gender || "").toLowerCase();
         return pGender === genderLower || pGender === "" || pGender === "unisex";
+      });
+    }
+
+    // Brand filter — exact match on the product brand, case-insensitive.
+    if (brandParam && brandParam !== "All") {
+      const brandLower = brandParam.trim().toLowerCase();
+      products = products.filter((p) => {
+        const pBrand = (p.brand || "").trim().toLowerCase();
+        return pBrand === brandLower;
       });
     }
 
