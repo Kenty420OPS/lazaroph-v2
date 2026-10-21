@@ -49,34 +49,34 @@ function TrackOrderContent() {
   const isCancelled = orderData?.status === "cancelled";
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col">
       <SiteHeader />
 
-      <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Link href="/" className="text-neutral-400 hover:text-white text-sm flex items-center mb-6">
+      <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-white text-[#0A0A0A]">
+        <Link href="/" className="inline-flex items-center min-h-11 text-[#6B6B6B] hover:text-[#0A0A0A] text-sm mb-6">
           &larr; Back to Home
         </Link>
         <h1 className="text-3xl font-black tracking-tight mb-8">TRACK YOUR ORDER</h1>
         
         {!orderData ? (
-          <form onSubmit={handleSubmit} className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800 space-y-4 max-w-md">
+          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-[#0A0A0A]/10 space-y-4 max-w-md">
             {error && (
-              <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded-lg text-sm">
+              <div className="bg-[#0A0A0A]/5 border border-[#0A0A0A]/10 text-[#0A0A0A] p-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
             <div>
-              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Order ID</label>
-              <input required type="text" value={orderId} onChange={e => setOrderId(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" placeholder="e.g. jX9s8..." />
+              <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">Order ID</label>
+              <input required type="text" value={orderId} onChange={e => setOrderId(e.target.value)} className="w-full min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg p-3 text-sm text-[#0A0A0A] placeholder-[#6B6B6B] focus:border-[#0A0A0A] focus:outline-none" placeholder="e.g. jX9s8..." />
             </div>
             <div>
-              <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wide mb-1">Contact Number</label>
-              <input required type="text" value={contact} onChange={e => setContact(e.target.value)} className="w-full bg-black border border-neutral-800 rounded-lg p-3 text-sm focus:border-white focus:outline-none" placeholder="Used during checkout" />
+              <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">Contact Number</label>
+              <input required type="text" value={contact} onChange={e => setContact(e.target.value)} className="w-full min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg p-3 text-sm text-[#0A0A0A] placeholder-[#6B6B6B] focus:border-[#0A0A0A] focus:outline-none" placeholder="Used during checkout" />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 mt-2 rounded-lg bg-white text-black font-black hover:bg-neutral-200 transition-colors uppercase tracking-widest disabled:opacity-50"
+              className="w-full min-h-11 py-3 mt-2 rounded-lg bg-[#0A0A0A] text-white font-black hover:bg-[#0A0A0A]/90 transition-colors uppercase tracking-widest disabled:opacity-50"
             >
               {loading ? "Searching..." : "Track Order"}
             </button>
@@ -84,13 +84,13 @@ function TrackOrderContent() {
         ) : (
           <div className="space-y-8">
             <div className="flex gap-4">
-              <button onClick={() => setOrderData(null)} className="text-sm font-bold bg-neutral-900 px-4 py-2 rounded border border-neutral-800 hover:bg-neutral-800 transition-colors">
+              <button onClick={() => setOrderData(null)} className="text-sm font-bold bg-white px-4 py-2 min-h-11 rounded border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors">
                 Track Another Order
               </button>
-              <button 
-                onClick={handleSubmit} 
+              <button
+                onClick={handleSubmit}
                 disabled={loading}
-                className="text-sm font-bold bg-neutral-900 px-4 py-2 rounded border border-neutral-800 hover:bg-neutral-800 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="text-sm font-bold bg-white px-4 py-2 min-h-11 rounded border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <>
@@ -106,31 +106,31 @@ function TrackOrderContent() {
               </button>
             </div>
 
-            <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800">
-              <h2 className="text-xl font-bold mb-6">Order Status</h2>
-              
+            <div className="bg-white p-6 rounded-xl border border-[#0A0A0A]/10">
+              <h2 className="text-xl font-bold mb-6 text-[#0A0A0A]">Order Status</h2>
+
               {isCancelled ? (
-                <div className="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-lg font-bold text-center">
+                <div className="bg-[#0A0A0A]/5 border border-[#0A0A0A]/10 text-[#0A0A0A] p-4 rounded-lg font-bold text-center">
                   THIS ORDER HAS BEEN CANCELLED.
                 </div>
               ) : (
                 <div className="relative flex flex-col sm:grid sm:grid-cols-4 items-start gap-6 sm:gap-0 mt-8 mb-4">
-                  <div className="hidden sm:block absolute top-4 h-1 bg-neutral-800 -translate-y-1/2 z-0" style={{ left: '12.5%', right: '12.5%' }}></div>
-                  <div className="hidden sm:block absolute top-4 h-1 bg-white -translate-y-1/2 z-0 transition-all duration-500" style={{ left: '12.5%', width: `${(Math.max(0, currentStep - 1) / Math.max(1, trackSteps.length - 1)) * 75}%` }}></div>
+                  <div className="hidden sm:block absolute top-4 h-1 bg-[#0A0A0A]/10 -translate-y-1/2 z-0" style={{ left: '12.5%', right: '12.5%' }}></div>
+                  <div className="hidden sm:block absolute top-4 h-1 bg-[#0A0A0A] -translate-y-1/2 z-0 transition-all duration-500" style={{ left: '12.5%', width: `${(Math.max(0, currentStep - 1) / Math.max(1, trackSteps.length - 1)) * 75}%` }}></div>
 
                   {trackSteps.map((s, idx) => {
                     const step = idx + 1;
                     return (
                     <div key={s.status} className="relative z-10 flex sm:flex-col items-center gap-4 sm:gap-2 text-center w-full">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
-                        currentStep >= step 
-                          ? "bg-white border-white text-black" 
-                          : "bg-black border-neutral-700 text-neutral-500"
+                        currentStep >= step
+                          ? "bg-[#0A0A0A] border-[#0A0A0A] text-white"
+                          : "bg-[#0A0A0A]/5 border-[#0A0A0A]/20 text-[#6B6B6B]"
                       }`}>
                         {currentStep > step ? "✓" : step}
                       </div>
                       <span className={`text-xs font-bold uppercase tracking-wider ${
-                        currentStep >= step ? "text-white" : "text-neutral-500"
+                        currentStep >= step ? "text-[#0A0A0A]" : "text-[#6B6B6B]"
                       }`}>
                         {s.label}
                       </span>
@@ -142,42 +142,42 @@ function TrackOrderContent() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800">
-                <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-800 pb-2">Order Summary</h3>
+              <div className="bg-white p-6 rounded-xl border border-[#0A0A0A]/10">
+                <h3 className="text-sm font-bold text-[#0A0A0A] uppercase tracking-wider mb-4 border-b border-[#0A0A0A]/10 pb-2">Order Summary</h3>
                 <div className="space-y-3">
                   {orderData.items?.map((item: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center text-sm">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-black border border-neutral-800 rounded overflow-hidden">
+                        <div className="w-10 h-10 bg-[#0A0A0A]/5 border border-[#0A0A0A]/10 rounded overflow-hidden">
                           {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />}
                         </div>
-                        <span><span className="text-neutral-500">{item.quantity}x</span> {item.name}{typeof item.size === "string" && item.size ? ` (Size: ${item.size})` : ""}</span>
+                        <span><span className="text-[#6B6B6B]">{item.quantity}x</span> {item.name}{typeof item.size === "string" && item.size ? ` (Size: ${item.size})` : ""}</span>
                       </div>
-                      <span className="text-neutral-400">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
+                      <span className="text-[#6B6B6B]">₱{(item.price * item.quantity).toLocaleString("en-PH")}</span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 pt-3 border-t border-neutral-800 flex justify-between items-center">
-                  <span className="text-neutral-400 text-sm">Shipping Fee ({orderData.shipping?.courier})</span>
-                  <span className="text-white text-sm">₱{Number(orderData.shipping?.shippingFee || 0).toLocaleString("en-PH")}</span>
+                <div className="mt-4 pt-3 border-t border-[#0A0A0A]/10 flex justify-between items-center">
+                  <span className="text-[#6B6B6B] text-sm">Shipping Fee ({orderData.shipping?.courier})</span>
+                  <span className="text-[#0A0A0A] text-sm">₱{Number(orderData.shipping?.shippingFee || 0).toLocaleString("en-PH")}</span>
                 </div>
-                <div className="mt-2 pt-2 border-t border-neutral-800 flex justify-between items-center">
-                  <span className="font-bold text-white uppercase">Total</span>
-                  <span className="text-lg font-black text-white">₱{Number(orderData.total || 0).toLocaleString("en-PH")}</span>
+                <div className="mt-2 pt-2 border-t border-[#0A0A0A]/10 flex justify-between items-center">
+                  <span className="font-bold text-[#0A0A0A] uppercase">Total</span>
+                  <span className="text-lg font-black text-[#0A0A0A]">₱{Number(orderData.total || 0).toLocaleString("en-PH")}</span>
                 </div>
               </div>
 
-              <div className="bg-neutral-900/60 p-6 rounded-xl border border-neutral-800">
-                <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-neutral-800 pb-2">{courier === "Pickup" ? "Pickup Details" : "Delivery Details"}</h3>
-                <div className="space-y-2 text-sm text-neutral-300">
-                  <p><span className="text-neutral-500">Name:</span> {orderData.customer?.name}</p>
+              <div className="bg-white p-6 rounded-xl border border-[#0A0A0A]/10">
+                <h3 className="text-sm font-bold text-[#0A0A0A] uppercase tracking-wider mb-4 border-b border-[#0A0A0A]/10 pb-2">{courier === "Pickup" ? "Pickup Details" : "Delivery Details"}</h3>
+                <div className="space-y-2 text-sm text-[#0A0A0A]">
+                  <p><span className="text-[#6B6B6B]">Name:</span> {orderData.customer?.name}</p>
                   {courier === "Pickup" ? (
-                    <p><span className="text-neutral-500">Pickup at:</span> {orderData.shipping?.branchName}, {orderData.shipping?.branchAddress}</p>
+                    <p><span className="text-[#6B6B6B]">Pickup at:</span> {orderData.shipping?.branchName}, {orderData.shipping?.branchAddress}</p>
                   ) : orderData.customer?.address ? (
-                    <p><span className="text-neutral-500">Address:</span> {orderData.customer?.address}</p>
+                    <p><span className="text-[#6B6B6B]">Address:</span> {orderData.customer?.address}</p>
                   ) : null}
-                  <p><span className="text-neutral-500">Courier:</span> {orderData.shipping?.courier}</p>
-                  <p><span className="text-neutral-500">Payment:</span> {orderData.payment?.method} (Ref: {orderData.payment?.referenceNumber})</p>
+                  <p><span className="text-[#6B6B6B]">Courier:</span> {orderData.shipping?.courier}</p>
+                  <p><span className="text-[#6B6B6B]">Payment:</span> {orderData.payment?.method} (Ref: {orderData.payment?.referenceNumber})</p>
                 </div>
               </div>
             </div>
@@ -192,7 +192,7 @@ function TrackOrderContent() {
 
 export default function TrackOrderPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center font-bold">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-white text-[#0A0A0A] flex items-center justify-center font-bold">Loading...</div>}>
       <TrackOrderContent />
     </Suspense>
   );
