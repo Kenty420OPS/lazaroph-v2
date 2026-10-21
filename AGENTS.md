@@ -182,6 +182,14 @@ Store Settings and payment methods management.
 - Centered layout: /images/logo.png on the existing white tile (rounded-2xl, p-6, 120px mobile / 160px desktop), "EST. 2016 • MARIKINA" eyebrow with thin rules (#B3B3B3, tracking-widest), headline "Authentic. Legit. Below Market Price." at 30/48/60px, subline at 16/18px, and "Shop now" / "Explore categories" buttons (min-h-11, stacked on mobile, side by side on sm+).
 - Section py-20 mobile / py-28 desktop, min-h-[560px]; black and white only. Branch feature/hero-solid-black (based on feature/header-hero, since Hero.tsx is not on main yet).
 
+### Storefront consistency (In progress)
+- Every customer-facing page now uses the shared components/home/SiteHeader and components/home/SiteFooter: /shop, /shop/[id], /cart, /sign-in, /sign-up, /track-order, /checkout (+ empty-cart state), /checkout/success. Presentation only — no data, auth, cart or checkout logic changed.
+- Removed the per-page inline headers (the "L" logo box, "Public Catalog" and "Continue Shopping" buttons) and every per-page footer, including the shop/shop-detail copyright-only line; tracked-order and checkout previously had no header or footer at all.
+- Sign-in / sign-up keep the form, Google button and auth logic; only the surrounding header and the top logo box changed (content stays centered below the header). Sign-up renders the header/footer on both the form and the "check your email" screen.
+- Pages that had no flex column got `flex flex-col` + `flex-1` on the content wrapper so the footer sits at the bottom. /checkout/success still prerenders as static (○).
+- Not done in this branch: the "Official Storefront" hero on /shop is untouched (flagged for a later pass).
+- Branch feature/storefront-consistency, not committed yet. Owner browser verification at 375px / 768px pending.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.

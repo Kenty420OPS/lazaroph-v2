@@ -4,6 +4,8 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getStatusStep, getTrackSteps } from "@/lib/order-status";
+import SiteHeader from "@/components/home/SiteHeader";
+import SiteFooter from "@/components/home/SiteFooter";
 
 function TrackOrderContent() {
   const searchParams = useSearchParams();
@@ -47,8 +49,10 @@ function TrackOrderContent() {
   const isCancelled = orderData?.status === "cancelled";
 
   return (
-    <div className="min-h-screen bg-black text-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <SiteHeader />
+
+      <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Link href="/" className="text-neutral-400 hover:text-white text-sm flex items-center mb-6">
           &larr; Back to Home
         </Link>
@@ -180,6 +184,8 @@ function TrackOrderContent() {
           </div>
         )}
       </div>
+
+      <SiteFooter />
     </div>
   );
 }
