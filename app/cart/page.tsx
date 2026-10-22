@@ -103,9 +103,12 @@ export default function CartPage() {
                     <span>Subtotal ({cartCount} items)</span>
                     <span className="text-[#0A0A0A]">₱{cartTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Shipping</span>
-                    <span className="text-[#0A0A0A]">Calculated at checkout</span>
+                  <div>
+                    <div className="flex justify-between">
+                      <span>Shipping</span>
+                      <span className="text-[#0A0A0A]">Calculated at checkout</span>
+                    </div>
+                    <p className="text-xs text-[#6B6B6B] italic mt-1">Shipping depends on your courier.</p>
                   </div>
                 </div>
                 <div className="flex justify-between items-center mb-6">

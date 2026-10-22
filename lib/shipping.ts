@@ -9,12 +9,26 @@ export const LBC_REGION_FEES: Record<string, number> = {
 export const VALID_COURIERS = ["Lalamove", "LBC", "Pickup"] as const;
 export const VALID_REGIONS = Object.keys(LBC_REGION_FEES);
 
-export function getShippingFee(courier: string, region?: string | null): number {
+export function getLbcRate(region?: string | null): number {
+  return LBC_REGION_FEES[region || ""] ?? 0;
+}
+
+// LBC is charged per pair/piece: the regional rate multiplied by the total
+// quantity of every item in the cart (regardless of product price).
+// Lalamove (paid to the rider) and Pickup are always 0.
+export function calculateShippingFee(
+  courier: string,
+  region: string | null | undefined,
+  totalQuantity: number
+): number {
   if (courier === "Pickup") {
     return 0;
   }
   if (courier === "LBC") {
-    return LBC_REGION_FEES[region || ""] ?? 0;
+    if (!Number.isInteger(totalQuantity) || totalQuantity < 1) {
+      return 0;
+    }
+    return getLbcRate(region) * totalQuantity;
   }
   // Lalamove and other couriers: delivery fee paid directly to courier.
   return 0;
@@ -41,7 +55,7 @@ export const SHIPPING_METHODS: Record<Courier, ShippingMethodConfig> = {
     description: "Nationwide delivery",
     requiresAddress: true,
     feeMode: "region",
-    note: "Fixed shipping fee by region (Luzon, Visayas, Mindanao).",
+    note: "Charged per pair by region (Luzon, Visayas, Mindanao).",
   },
   Lalamove: {
     label: "Lalamove",
