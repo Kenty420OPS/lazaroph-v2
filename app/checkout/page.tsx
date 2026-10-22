@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { getShippingFee, SHIPPING_METHODS, METRO_MANILA_CITIES, type Courier, type Region } from "@/lib/shipping";
+import { calculateShippingFee, getLbcRate, SHIPPING_METHODS, METRO_MANILA_CITIES, type Courier, type Region } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
@@ -33,6 +33,7 @@ export default function CheckoutPage() {
   const [region, setRegion] = useState<Region | "">("");
   const [deliveryCity, setDeliveryCity] = useState("");
   const [riderFeeAck, setRiderFeeAck] = useState(false);
+  const [lbcFeeAck, setLbcFeeAck] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -73,11 +74,22 @@ export default function CheckoutPage() {
 
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) || null;
 
+  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const lbcRate = getLbcRate(region);
   const shippingFee =
     courier && (courier !== "LBC" || region)
-      ? getShippingFee(courier, region)
+      ? calculateShippingFee(courier, region, totalQuantity)
       : 0;
+  const lbcPairsLabel = totalQuantity === 1 ? "pair" : "pairs";
+  const lbcFeeText = `₱${lbcRate.toLocaleString("en-PH")} x ${totalQuantity} ${lbcPairsLabel} = ₱${shippingFee.toLocaleString("en-PH")}`;
+  const lbcAckText = `I understand LBC shipping is charged per pair, so my total shipping fee is ₱${shippingFee.toLocaleString("en-PH")} for ${totalQuantity} ${lbcPairsLabel}.`;
   const finalTotal = cartTotal + shippingFee;
+
+  // The LBC per-pair acknowledgment must be re-confirmed whenever the fee
+  // changes (courier, region or total cart quantity).
+  useEffect(() => {
+    setLbcFeeAck(false);
+  }, [courier, region, totalQuantity]);
 
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -153,9 +165,15 @@ export default function CheckoutPage() {
         setError("Please fill in all required fields.");
         return;
       }
-      if (courier === "LBC" && !region) {
-        setError("Please select a region for LBC.");
-        return;
+      if (courier === "LBC") {
+        if (!region) {
+          setError("Please select a region for LBC.");
+          return;
+        }
+        if (!lbcFeeAck) {
+          setError("Please confirm the LBC per-pair shipping fee to continue.");
+          return;
+        }
       }
       if (courier === "Lalamove") {
         if (!deliveryCity) {
@@ -174,6 +192,14 @@ export default function CheckoutPage() {
     }
 
     // Step 2 - full submit logic (unchanged)
+    // The LBC acknowledgment must still hold at submit time. The server
+    // recomputes the fee itself and never trusts the checkbox or client fee.
+    if (courier === "LBC" && (!region || !lbcFeeAck)) {
+      setError("Please confirm the LBC per-pair shipping fee to continue.");
+      setStep(1);
+      window.scrollTo({ top: 0 });
+      return;
+    }
     if (!referenceNumber.trim()) {
       setError("Please fill in all required fields and upload proof of payment.");
       return;
@@ -226,6 +252,7 @@ export default function CheckoutPage() {
       if (courier === "LBC") {
         formData.append("region", region);
         formData.append("shippingFee", shippingFee.toString());
+        formData.append("lbcFeeAcknowledged", lbcFeeAck ? "true" : "false");
       }
       if (courier === "Lalamove") {
         formData.append("city", deliveryCity);
@@ -385,9 +412,9 @@ export default function CheckoutPage() {
                 <span>₱0.00</span>
               </div>
             ) : courier === "LBC" && region ? (
-              <div className="flex justify-between text-[#0A0A0A]">
-                <span>Shipping (LBC - {region})</span>
-                <span>₱{shippingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
+              <div className="flex justify-between gap-3 text-[#0A0A0A]">
+                <span>Shipping (LBC - {region}) ₱{lbcRate.toLocaleString("en-PH")} x {totalQuantity}</span>
+                <span className="shrink-0 text-right">₱{shippingFee.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
               </div>
             ) : courier === "Lalamove" ? (
               <div className="text-xs text-[#6B6B6B] italic mt-1">{SHIPPING_METHODS.Lalamove.note}</div>
@@ -475,7 +502,9 @@ export default function CheckoutPage() {
                   ))}
                 </select>
               </div>
-              {courier === "LBC" && (
+            </div>
+            {courier === "LBC" && (
+              <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                     Select your region *
@@ -492,9 +521,26 @@ export default function CheckoutPage() {
                     <option value="Visayas">Visayas</option>
                     <option value="Mindanao">Mindanao</option>
                   </select>
+                  {region && (
+                    <p className="text-xs text-[#6B6B6B] italic mt-1">
+                      LBC shipping is charged per pair. {lbcFeeText}.
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
+                {region && (
+                  <label className="flex items-start gap-3 min-h-11 text-sm text-[#0A0A0A] cursor-pointer">
+                    <input
+                      required
+                      type="checkbox"
+                      checked={lbcFeeAck}
+                      onChange={(e) => setLbcFeeAck(e.target.checked)}
+                      className="mt-1 w-5 h-5 shrink-0 accent-[#0A0A0A]"
+                    />
+                    <span>{lbcAckText}</span>
+                  </label>
+                )}
+              </div>
+            )}
             {courier === "Lalamove" && (
               <div className="space-y-4">
                 <div>

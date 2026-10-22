@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { getShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
+import { calculateShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice, hasSizeSystem, getTotalStock } from "@/lib/product";
 import { createRateLimiter } from "@/lib/rate-limit";
@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     const region = (formData.get("region") as string | null) ?? "";
     const city = formData.get("city") as string | null;
     const metroManilaAcknowledged = formData.get("metroManilaAcknowledged") as string | null;
+    const lbcFeeAcknowledged = formData.get("lbcFeeAcknowledged") as string | null;
     const paymentMethodId = (formData.get("paymentMethodId") as string | null) ?? "";
     const referenceNumberRaw = (formData.get("referenceNumber") as string | null) ?? "";
     const cartStr = formData.get("cart") as string;
@@ -147,6 +148,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Invalid or missing region for LBC" }, { status: 400 });
     }
 
+    if (courier === "LBC" && lbcFeeAcknowledged !== "true") {
+      return NextResponse.json(
+        { success: false, error: "Please confirm the LBC per-pair shipping fee to continue." },
+        { status: 400 }
+      );
+    }
+
     if (courier === "Lalamove") {
       const trimmedCity = typeof city === "string" ? city.trim() : "";
       if (metroManilaAcknowledged !== "true" || !trimmedCity || !isMetroManila(trimmedCity)) {
@@ -204,7 +212,15 @@ export async function POST(request: Request) {
     const productIds = Array.from(new Set(lines.map((line) => line.id)));
     const productRefs = productIds.map((productId) => adminDb.collection("products").doc(productId));
 
-    const shippingFee = getShippingFee(courier, region);
+    // LBC is charged per pair: the fee needs the summed quantity of every cart
+    // line. Each line quantity is already validated above; this keeps the
+    // derived total explicit and rejects a non-positive/non-integer total.
+    const totalQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
+    if (!Number.isInteger(totalQuantity) || totalQuantity < 1) {
+      return NextResponse.json({ success: false, error: "Cart quantity must be a positive integer" }, { status: 400 });
+    }
+
+    const shippingFee = calculateShippingFee(courier, region, totalQuantity);
 
     // Validate the selected payment method BEFORE validating/uploading the proof image
     let paymentMethodDoc: any = null;
