@@ -58,6 +58,13 @@ export default function SuccessContent() {
         )}
       </div>
 
+      <p className="text-xs text-[#6B6B6B]">
+        Online orders are final.{" "}
+        <Link href="/returns" className="underline hover:text-[#0A0A0A] transition-colors">
+          See our Return Policy.
+        </Link>
+      </p>
+
       <div className="pt-6">
         <Link
           href="/shop"

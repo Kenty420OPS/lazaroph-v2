@@ -268,6 +268,16 @@ Store Settings and payment methods management.
 - lib/user-error.ts exports getUserErrorMessage(error: unknown, fallback: string): string. Only short plain-sentence messages from our own errors are shown; SDK/runtime error strings are filtered and replaced with the provided fallback.
 - Removed "Firestore" from user-visible text: shop empty state, admin catalog header, products API error string.
 
+### Policy pages (Done)
+- Added lib/store-info.ts as single source of truth for store details and policy last-updated date (2026-10-23 formatted for display), with email/phones as mailto/tel helpers.
+- Created static pages /privacy, /terms, /shipping-policy, /returns, /contact with metadata titles and a shared PolicyPage layout (SiteHeader, max-w-3xl article, "Last updated", h1/h2, body text-sm, SiteFooter).
+- Returns policy: 7-day replacement for eligible items only (no cash refund), conditions (unworn, unwashed, complete accessories/box/packaging/receipt), walk-in size change if conditions met, exclusions (change of mind, buyer mishandling, no defect at purchase), items sold "as-is-where-is", confirmed online orders final and non-reversible/cancellable, defective/wrong items reported within 7 days with photos/video and order ID with replacement if confirmed.
+- Shipping policy: LBC (per-pair by region, read via getLbcRate), Lalamove (Metro Manila, same-day after payment verification/manual within 24h, rider fee paid by buyer), Pickup (store address/hours from lib/branches.ts). Items ship after verification; complete/correct address and contact required.
+- Terms: site use, 100% authentic, prices/availability may change, orders confirmed only after payment verification with proof of payment, online orders final (linked to /returns), right to cancel for stock/pricing errors with full payment returned, limitation of liability, contact link, governing law Philippines.
+- Privacy: collects name, contact, address, email/account (sign-in/Google), payment proof screenshot, order details; used for processing/delivery/verification/support; shared only with staff/couriers; stored securely/retained as needed; Data Privacy Act 2012 rights via contact email/phones; cart in browser local storage; no analytics/advertising pixels claimed.
+- Contact: store details, phones as tel:, email as mailto:, Facebook/Instagram, hours from branches if available, note about defective/wrong items with order ID/photos.
+- Footer: added Policies group with the five links (min-h-11). Checkout and order-received pages show "Online orders are final. See our Return Policy." linking to /returns.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
