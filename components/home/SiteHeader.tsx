@@ -58,7 +58,7 @@ export default function SiteHeader() {
               alt="LAZAROPH"
               className="h-10 w-auto object-contain rounded-full shrink-0"
             />
-            <span className="text-xl sm:text-2xl font-black tracking-[0.15em] sm:tracking-[0.2em] text-white whitespace-nowrap group-hover:text-white/80 transition-colors">
+            <span className="text-base sm:text-2xl font-black tracking-[0.1em] sm:tracking-[0.2em] text-white whitespace-nowrap group-hover:text-white/80 transition-colors">
               LAZAROPH
             </span>
           </Link>
