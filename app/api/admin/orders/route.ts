@@ -4,6 +4,8 @@ import { verifyAdminRequest } from "@/lib/admin-auth";
 import { isValidStatusForCourier } from "@/lib/order-status";
 import { hasSizeSystem, getTotalStock } from "@/lib/product";
 
+export const dynamic = "force-dynamic";
+
 // Thrown inside the status transaction when the order disappeared between the
 // pre-read and the transaction so the response stays 404 (not a generic 500).
 class OrderStatusError extends Error {

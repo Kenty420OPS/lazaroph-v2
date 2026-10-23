@@ -3,6 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { createRateLimiter } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 const reviewLimiter = createRateLimiter({
   maxRequests: 10,
   windowMs: 15 * 60 * 1000,

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { verifySuperadminRequest, isStaffRole } from "@/lib/admin-auth";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/admins — list all admin/superadmin accounts (superadmin only)
 export async function GET(request: Request) {
   try {

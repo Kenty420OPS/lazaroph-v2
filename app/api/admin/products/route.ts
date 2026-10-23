@@ -27,6 +27,8 @@ import {
   type ProductSize,
 } from "@/lib/product";
 
+export const dynamic = "force-dynamic";
+
 type ValidatedUpload = { buffer: Buffer; contentType: string; ext: string };
 
 // Finds a SKU that is not already used by another product. Tries up to 8

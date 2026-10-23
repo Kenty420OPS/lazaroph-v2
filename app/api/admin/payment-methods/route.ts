@@ -6,6 +6,8 @@ import {
   validatePaymentMethodPatch,
 } from "@/lib/payment-methods";
 
+export const dynamic = "force-dynamic";
+
 const COLLECTION = "paymentMethods";
 
 // GET /api/admin/payment-methods — list all methods (including inactive), ordered by sortOrder (superadmin only)
