@@ -484,7 +484,7 @@ export default function CheckoutPage() {
               </div>
             )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                   Preferred Courier *
                 </label>
@@ -631,7 +631,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                   Payment Method *
                 </label>
@@ -651,7 +651,7 @@ export default function CheckoutPage() {
                   ))}
                 </select>
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                   Reference Number *
                 </label>
@@ -675,7 +675,7 @@ export default function CheckoutPage() {
                 type="file"
                 accept="image/*"
                 onChange={(e) => setPaymentImage(e.target.files?.[0] || null)}
-                className="w-full min-h-11 bg-white border border-dashed border-[#0A0A0A]/20 rounded-lg p-2 text-sm text-[#0A0A0A] focus:border-[#0A0A0A] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0A0A0A] file:text-white hover:file:bg-[#0A0A0A]/90"
+                className="w-full min-w-0 max-w-full min-h-11 bg-white border border-dashed border-[#0A0A0A]/20 rounded-lg p-2 text-sm text-[#0A0A0A] focus:border-[#0A0A0A] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0A0A0A] file:text-white hover:file:bg-[#0A0A0A]/90"
               />
             </div>
 
@@ -704,14 +704,14 @@ export default function CheckoutPage() {
                   setStep(1);
                   window.scrollTo({ top: 0 });
                 }}
-                className="flex-1 min-h-11 py-4 rounded-lg bg-white text-[#0A0A0A] border border-[#0A0A0A] font-black hover:bg-[#0A0A0A]/5 transition-colors uppercase tracking-widest"
+                className="flex-1 min-w-0 min-h-11 py-4 rounded-lg bg-white text-[#0A0A0A] border border-[#0A0A0A] font-black hover:bg-[#0A0A0A]/5 transition-colors uppercase tracking-widest"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={loading || methodsLoading || methodsUnavailable || !selectedMethod}
-                className="flex-1 min-h-11 py-4 rounded-lg bg-[#0A0A0A] text-white font-black hover:bg-[#0A0A0A]/90 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 min-w-0 min-h-11 py-4 rounded-lg bg-[#0A0A0A] text-white font-black hover:bg-[#0A0A0A]/90 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Processing Order..." : "Submit Order"}
               </button>
