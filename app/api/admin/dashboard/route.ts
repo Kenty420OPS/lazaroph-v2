@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifySuperadminRequest } from "@/lib/admin-auth";
 
+export const dynamic = "force-dynamic";
+
 // Statuses that count as verified payment. pending_payment and cancelled are excluded.
 const REVENUE_STATUSES = ["confirmed", "shipped", "ready_for_pickup", "picked_up", "completed"];
 const TZ = "Asia/Manila";
