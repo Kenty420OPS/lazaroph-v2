@@ -23,6 +23,11 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Fired right after an item is added. Presentation-only listeners (the
+// signed-out sign-in prompt) react to this instead of watching cart state, so
+// cart behaviour itself never changes.
+export const ADD_TO_CART_EVENT = "lazaroph:add-to-cart";
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -60,6 +65,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, { ...item, size: itemSize, quantity: 1 }];
     });
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(ADD_TO_CART_EVENT));
+    }
   };
 
   const removeFromCart = (id: string, size: string = "") => {
