@@ -60,11 +60,13 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands" | "categories">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands" | "categories" | "dashboard">("products");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const [chats, setChats] = useState<any[]>([]);
@@ -395,6 +397,47 @@ export default function AdminPage() {
     }
   };
 
+  const loadDashboard = async () => {
+    setLoadingDashboard(true);
+    try {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) return;
+      const response = await fetch("/api/admin/dashboard", {
+        headers: { "Authorization": authHeader },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setDashboard(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  const exportDashboardCsv = async () => {
+    try {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) return;
+      const response = await fetch("/api/admin/dashboard?format=csv", {
+        headers: { "Authorization": authHeader },
+      });
+      if (!response.ok) return;
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sales-report.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const updateOrderStatus = async (id: string, newStatus: string) => {
     try {
       const authHeader = await getAuthHeader();
@@ -668,6 +711,14 @@ export default function AdminPage() {
             >
               Products
             </button>
+            {userRole === 'superadmin' && (
+              <button
+                onClick={() => { setActiveTab("dashboard"); loadDashboard(); }}
+                className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "dashboard" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+              >
+                Dashboard
+              </button>
+            )}
             <button
               onClick={() => setActiveTab("orders")}
               className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "orders" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
@@ -1024,6 +1075,85 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === "dashboard" && userRole === 'superadmin' && (
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
+              <div>
+                <h2 className="text-xl font-bold uppercase tracking-wider">Sales &amp; Financials</h2>
+                <p className="text-xs text-neutral-500 mt-1">Revenue from confirmed, shipped, ready for pickup, picked up, and completed orders only.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={loadDashboard}
+                  className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={exportDashboardCsv}
+                  className="bg-white text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-neutral-200 transition-colors"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            {loadingDashboard ? (
+              <div className="flex justify-center py-20 text-neutral-500">Loading dashboard...</div>
+            ) : !dashboard ? (
+              <div className="text-center py-20 bg-neutral-950 border border-neutral-800 rounded-2xl text-neutral-500 text-sm">
+                No data loaded. Click Refresh.
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6">
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider font-bold mb-1">Total Revenue</p>
+                    <p className="text-3xl font-black text-white">
+                      &#8369;{dashboard.totals.revenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6">
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider font-bold mb-1">Total Orders</p>
+                    <p className="text-3xl font-black text-white">{dashboard.totals.orders}</p>
+                  </div>
+                </div>
+
+                <div className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-neutral-800 text-xs text-neutral-500 uppercase tracking-wider">
+                          <th className="p-4 font-bold">Date</th>
+                          <th className="p-4 font-bold">Orders</th>
+                          <th className="p-4 font-bold">Revenue (&#8369;)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboard.days.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="p-8 text-center text-neutral-500 text-sm">No revenue data yet.</td>
+                          </tr>
+                        ) : (
+                          dashboard.days.map((d: { date: string; orders: number; revenue: number }) => (
+                            <tr key={d.date} className="border-b border-neutral-900 hover:bg-neutral-900/40 transition-colors">
+                              <td className="p-4 text-xs font-mono text-neutral-300">{d.date}</td>
+                              <td className="p-4 text-xs text-white">{d.orders}</td>
+                              <td className="p-4 text-xs text-white font-bold">
+                                {d.revenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
