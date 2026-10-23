@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch products",
+        error: "Could not load data. Please try again.",
       },
       { status: 500 }
     );

@@ -4,6 +4,8 @@ import { useEffect, useState, FormEvent, useRef } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
+import { getUserErrorMessage } from "@/lib/user-error";
 import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
 import BrandsSettings from "@/components/BrandsSettings";
@@ -172,8 +174,9 @@ export default function AdminPage() {
     setLoginError("");
     try {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-    } catch (err: any) {
-      setLoginError(err.message || "Failed to login");
+    } catch (err: unknown) {
+      const msg = getAuthErrorMessage(err);
+      setLoginError(msg || "Something went wrong. Please try again.");
     }
   };
 
@@ -332,7 +335,7 @@ export default function AdminPage() {
           previewUrl: URL.createObjectURL(compressed),
         });
       } catch (err: any) {
-        showNotification(`${file.name}: ${err.message}`, "error");
+        showNotification(`${file.name}: ${getUserErrorMessage(err, "Upload failed")}`, "error");
       }
     }
 
@@ -558,7 +561,7 @@ export default function AdminPage() {
       }
     } catch (err: any) {
       console.error(err);
-      showNotification("Failed: " + err.message, "error");
+      showNotification("Failed: " + getUserErrorMessage(err, "Request failed"), "error");
     } finally {
       setSubmitting(false);
     }
@@ -962,7 +965,7 @@ export default function AdminPage() {
 
             <div className="lg:col-span-7 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-                <h2 className="text-base font-bold text-white uppercase tracking-wider">Firestore Product Catalog</h2>
+                <h2 className="text-base font-bold text-white uppercase tracking-wider">Product Catalog</h2>
                 <button onClick={verifyAndLoad} className="text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-lg">Refresh ?</button>
               </div>
 

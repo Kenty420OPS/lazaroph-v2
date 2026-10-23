@@ -10,6 +10,7 @@ import { calculateShippingFee, getLbcRate, SHIPPING_METHODS, METRO_MANILA_CITIES
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
+import { getUserErrorMessage } from "@/lib/user-error";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -343,7 +344,7 @@ export default function CheckoutPage() {
         `/checkout/success?orderId=${data.orderId}&courier=${encodeURIComponent(courier)}${branchParam}`
       );
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+      setError(getUserErrorMessage(err, "An unexpected error occurred."));
     } finally {
       setLoading(false);
     }

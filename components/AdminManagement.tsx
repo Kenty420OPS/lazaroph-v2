@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { auth } from "@/lib/firebase";
+import { getUserErrorMessage } from "@/lib/user-error";
 
 type AdminRow = {
   uid: string;
@@ -99,7 +100,7 @@ export default function AdminManagement({ currentUid }: Props) {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to create admin");
+      setError(getUserErrorMessage(err, "Failed to create admin"));
     } finally {
       setSubmitting(false);
     }
@@ -127,7 +128,7 @@ export default function AdminManagement({ currentUid }: Props) {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to update admin");
+      setError(getUserErrorMessage(err, "Failed to update admin"));
     }
   };
 
