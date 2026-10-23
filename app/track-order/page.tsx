@@ -16,6 +16,10 @@ function TrackOrderContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [orderData, setOrderData] = useState<any>(null);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingMessage, setRatingMessage] = useState("");
+  const [ratingDone, setRatingDone] = useState(false);
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -34,6 +38,9 @@ function TrackOrderContent() {
         setOrderData(null);
       } else {
         setOrderData(data.order);
+        setSelectedRating(0);
+        setRatingMessage("");
+        setRatingDone(false);
       }
     } catch (err: any) {
       setError("An unexpected error occurred. Please try again.");
@@ -181,6 +188,73 @@ function TrackOrderContent() {
                 </div>
               </div>
             </div>
+
+            {(orderData.status === "completed" || orderData.status === "picked_up") && (
+              <div className="bg-white p-6 rounded-xl border border-[#0A0A0A]/10">
+                <h3 className="text-sm font-bold text-[#0A0A0A] uppercase tracking-wider mb-4 border-b border-[#0A0A0A]/10 pb-2">
+                  Rate Your Order
+                </h3>
+                {ratingDone ? (
+                  <p className="text-sm text-[#0A0A0A]">{ratingMessage}</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setSelectedRating(star)}
+                          className={`min-h-11 w-11 flex items-center justify-center text-2xl transition-colors ${
+                            selectedRating >= star
+                              ? "text-[#0A0A0A]"
+                              : "text-[#0A0A0A]/20 hover:text-[#0A0A0A]/50"
+                          }`}
+                          aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+                        >
+                          &#9733;
+                        </button>
+                      ))}
+                    </div>
+                    {ratingMessage && (
+                      <p className="text-sm text-[#6B6B6B]">{ratingMessage}</p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={selectedRating === 0 || ratingSubmitting}
+                      onClick={async () => {
+                        setRatingSubmitting(true);
+                        setRatingMessage("");
+                        try {
+                          const res = await fetch("/api/reviews", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              orderId: orderId.trim(),
+                              contact: contact.trim(),
+                              rating: selectedRating,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            setRatingDone(true);
+                            setRatingMessage("Thank you for your rating!");
+                          } else {
+                            setRatingMessage(data.error || "Could not submit rating. Please try again.");
+                          }
+                        } catch {
+                          setRatingMessage("Could not submit rating. Please try again.");
+                        } finally {
+                          setRatingSubmitting(false);
+                        }
+                      }}
+                      className="min-h-11 px-6 py-2 rounded-lg bg-[#0A0A0A] text-white text-sm font-bold hover:bg-[#0A0A0A]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {ratingSubmitting ? "Submitting..." : "Submit Rating"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

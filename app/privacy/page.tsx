@@ -23,6 +23,10 @@ export default function PrivacyPage() {
           </li>
           <li>Your payment proof screenshot</li>
           <li>Your order details, such as items, sizes, amounts and status</li>
+          <li>
+            Ratings you give after your order is completed or picked up (a star rating and the
+            order ID). These are shown publicly as an average per product once approved.
+          </li>
         </ul>
       </PolicySection>
 
