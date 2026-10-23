@@ -278,7 +278,7 @@ Store Settings and payment methods management.
 - Contact: store details, phones as tel:, email as mailto:, Facebook/Instagram, hours from branches if available, note about defective/wrong items with order ID/photos.
 - Footer: added Policies group with the five links (min-h-11). Checkout and order-received pages show "Online orders are final. See our Return Policy." linking to /returns.
 
-### Mission 10 (backlog)
+### Mission 10 (Done)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
 3. Admin Management: race condition on the last-superadmin check is a known limitation, low priority. Requires two superadmins demoting each other within about a second. Recovery: seed script sets the superadmin claim. If ever fixed, prefer a lightweight lock document over a counter.
