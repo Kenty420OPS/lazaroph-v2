@@ -160,7 +160,7 @@ export default function ChatWidget() {
   if (isAdmin) return null; // Hide completely for admins (claims based)
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {isOpen && (
         <div className="bg-black border border-neutral-800 w-80 sm:w-96 h-[500px] max-h-[80vh] rounded-2xl shadow-2xl mb-4 flex flex-col overflow-hidden font-mono text-white">
           <div className="bg-neutral-900 border-b border-neutral-800 p-4 flex justify-between items-center">
