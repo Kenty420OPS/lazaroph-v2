@@ -16,14 +16,15 @@ import {
   signInWithCredential,
   signInWithPopup,
 } from "firebase/auth";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 
 // Generic messages only: never reveal whether an email is already registered
 // beyond the single "sign in instead" hint below.
-const GENERIC_ERROR = "Unable to create account. Please try again.";
-const ALREADY_EXISTS_ERROR = "Unable to create account. If you already have one, sign in.";
+const GENERIC_ERROR = "Could not create the account. Please try again or sign in.";
+const ALREADY_EXISTS_ERROR = "Could not create the account. Please try again or sign in.";
 const PASSWORD_MISMATCH_ERROR = "Passwords do not match.";
 const PASSWORD_LENGTH_ERROR = "Password must be at least 8 characters.";
-const GENERIC_POPUP_ERROR = "Google sign-up was cancelled or failed. Please try again.";
+const GENERIC_POPUP_ERROR = "Something went wrong. Please try again.";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -121,9 +122,12 @@ function SignUpForm() {
       setSubmitting(false);
     } catch (err) {
       const code = errorCode(err);
+      const mapped = getAuthErrorMessage(err);
       if (code === "auth/credential-already-in-use" || code === "auth/email-already-in-use") {
-        setError(ALREADY_EXISTS_ERROR);
+        setError(mapped || ALREADY_EXISTS_ERROR);
         setShowSignInHint(true);
+      } else if (mapped) {
+        setError(mapped);
       } else {
         setError(GENERIC_ERROR);
       }
@@ -153,6 +157,11 @@ function SignUpForm() {
       return;
     } catch (err) {
       const code = errorCode(err);
+      const mapped = getAuthErrorMessage(err);
+      if (mapped === "") {
+        setSubmitting(false);
+        return;
+      }
       if (code === "auth/credential-already-in-use" || code === "auth/email-already-in-use") {
         const credential = GoogleAuthProvider.credentialFromError(
           err as Parameters<typeof GoogleAuthProvider.credentialFromError>[0]
@@ -168,7 +177,7 @@ function SignUpForm() {
           }
         }
       }
-      setError(GENERIC_POPUP_ERROR);
+      setError(mapped || GENERIC_POPUP_ERROR);
       setSubmitting(false);
     }
   };

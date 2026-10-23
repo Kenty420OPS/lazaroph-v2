@@ -10,6 +10,7 @@ import BrandTiles from "@/components/home/BrandTiles";
 import { hasValidDiscount, getChargedPrice, PRODUCT_CATEGORIES } from "@/lib/product";
 import { CATEGORY_NAME_MAX } from "@/lib/categories";
 import { STOREFRONT_CATEGORIES, STOREFRONT_GENDERS } from "@/lib/storefront-nav";
+import { getUserErrorMessage } from "@/lib/user-error";
 
 interface Product {
   id: string;
@@ -85,7 +86,7 @@ function ShopPageContent() {
       setProducts(data.products || []);
     } catch (err: any) {
       console.error("Error fetching products:", err);
-      setError(err.message || "Something went wrong while fetching products.");
+      setError(getUserErrorMessage(err, "Something went wrong while fetching products."));
     } finally {
       setLoading(false);
     }
@@ -325,7 +326,7 @@ function ShopPageContent() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
-            <p className="text-[#6B6B6B] font-medium text-sm">No products found in Firestore</p>
+            <p className="text-[#6B6B6B] font-medium text-sm">No products found</p>
             <p className="text-xs text-[#6B6B6B] mt-1">Try selecting a different category or search term.</p>
           </div>
         ) : (

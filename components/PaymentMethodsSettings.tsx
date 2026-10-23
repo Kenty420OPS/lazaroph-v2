@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent, useRef } from "react";
 import { auth } from "@/lib/firebase";
+import { getUserErrorMessage } from "@/lib/user-error";
 
 type PaymentMethodRow = {
   id: string;
@@ -206,7 +207,7 @@ export default function PaymentMethodsSettings() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Request failed");
+      setError(getUserErrorMessage(err, "Request failed"));
     } finally {
       setSubmitting(false);
     }
@@ -248,7 +249,7 @@ export default function PaymentMethodsSettings() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Request failed");
+      setError(getUserErrorMessage(err, "Request failed"));
     } finally {
       setSubmitting(false);
     }
@@ -276,7 +277,7 @@ export default function PaymentMethodsSettings() {
       try {
         prepared = await prepareQrFile(file);
       } catch (prepErr: any) {
-        setError(prepErr.message || "Image is too large. Please use a smaller QR image.");
+        setError(getUserErrorMessage(prepErr, "Image is too large. Please use a smaller QR image."));
         return;
       }
 
@@ -301,7 +302,7 @@ export default function PaymentMethodsSettings() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to upload QR image");
+      setError(getUserErrorMessage(err, "Failed to upload QR image"));
     } finally {
       setSubmitting(false);
       qrTargetIdRef.current = null;
@@ -331,7 +332,7 @@ export default function PaymentMethodsSettings() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to remove QR image");
+      setError(getUserErrorMessage(err, "Failed to remove QR image"));
     } finally {
       setSubmitting(false);
     }
@@ -386,7 +387,7 @@ export default function PaymentMethodsSettings() {
       loadMethods();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Request failed");
+      setError(getUserErrorMessage(err, "Request failed"));
     } finally {
       setSubmitting(false);
     }

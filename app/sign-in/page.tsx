@@ -11,11 +11,12 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 
 // One generic message for every email/password failure so we never reveal
 // whether the email exists or the password was wrong.
 const GENERIC_EMAIL_ERROR = "Invalid email or password.";
-const GENERIC_POPUP_ERROR = "Google sign-in was cancelled or failed. Please try again.";
+const GENERIC_POPUP_ERROR = "Something went wrong. Please try again.";
 
 // Only accept a same-site path: must start with a single "/", must not start
 // with "//", must not contain "://", and must not contain a backslash,
@@ -55,7 +56,7 @@ function SignInForm() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.replace(next);
-    } catch {
+    } catch (err) {
       setError(GENERIC_EMAIL_ERROR);
       setSubmitting(false);
     }
@@ -68,8 +69,13 @@ function SignInForm() {
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
       router.replace(next);
-    } catch {
-      setError(GENERIC_POPUP_ERROR);
+    } catch (err) {
+      const msg = getAuthErrorMessage(err);
+      if (msg === "") {
+        setSubmitting(false);
+        return;
+      }
+      setError(msg || GENERIC_POPUP_ERROR);
       setSubmitting(false);
     }
   };

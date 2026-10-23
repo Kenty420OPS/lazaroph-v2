@@ -263,6 +263,11 @@ Store Settings and payment methods management.
 - Deploy note: the new server-side ack requirement applies immediately on deploy; any browser tab still running the old bundle must reload before placing an LBC order.
 - npx tsc --noEmit and npm run build pass (lint skipped). Branch fix/lbc-shipping-per-item, not committed yet.
 
+### Hide backend names in UI (In progress)
+- lib/auth-errors.ts exports getAuthErrorMessage(error: unknown): string. Raw backend/auth errors (Firebase messages, auth/ codes) are never shown to users; always map them through this helper. Wrong email and wrong password share one generic message (no account enumeration).
+- lib/user-error.ts exports getUserErrorMessage(error: unknown, fallback: string): string. Only short plain-sentence messages from our own errors are shown; SDK/runtime error strings are filtered and replaced with the provided fallback.
+- Removed "Firestore" from user-visible text: shop empty state, admin catalog header, products API error string.
+
 ### Mission 10 (backlog)
 1. Checkout: Not reproducible in code (finally block at app/checkout/page.tsx:218-220 resets loading on all error paths). Re-verify on production; optional hardening: remove the redundant setLoading(false) at line 140 and fall back to res.statusText when the error body is not JSON.
 2. Store Settings: auto-clear status messages (e.g. "QR image updated.") after a few seconds. Done in PR #9, merge commit 563a697.
