@@ -11,6 +11,7 @@ import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
 import { getUserErrorMessage } from "@/lib/user-error";
+import { readPolicyConsent } from "@/lib/policy-consent";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -265,6 +266,7 @@ export default function CheckoutPage() {
       formData.append("paymentMethod", paymentMethod);
       formData.append("paymentMethodId", paymentMethodId);
       formData.append("referenceNumber", referenceNumber);
+      formData.append("policyVersion", readPolicyConsent()?.version ?? "");
       formData.append("cart", JSON.stringify(cart));
       formData.append("total", finalTotal.toString());
       formData.append("paymentImage", processedImage);

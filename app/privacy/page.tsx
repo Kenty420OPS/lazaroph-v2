@@ -42,6 +42,10 @@ export default function PrivacyPage() {
             Request logs and your IP address, which our hosting provider records and which our
             system uses to limit repeated requests
           </li>
+          <li>
+            The date and time you agreed to our store policies, and the policy version, saved with
+            your order
+          </li>
         </ul>
         <p className="text-sm leading-relaxed">
           We do not collect any government ID.
