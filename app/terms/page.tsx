@@ -47,7 +47,7 @@ export default function TermsPage() {
           An order is final once we have confirmed and shipped it (for store pickup, once we
           have confirmed it and marked it ready for pickup). Before that, you may ask us to
           cancel it by contacting us with your order ID. If an order is cancelled, the payment is
-          returned right away, as long as the account number you gave us is correct. For eligible
+          returned right away, as long as the account details you send us are correct. For eligible
           replacements after you receive your order, please see our{" "}
           <Link href="/returns" className="underline">Return and Exchange Policy</Link>.
         </p>

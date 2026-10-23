@@ -25,6 +25,7 @@ export default function PrivacyPage() {
           </li>
           <li>The payment method you chose and the payment reference number you enter</li>
           <li>Your payment proof screenshot</li>
+          <li>If you ask us to return a payment, the account details you send us by email or chat</li>
           <li>
             Your delivery region (for LBC) or your Metro Manila delivery city (for Lalamove)
           </li>
@@ -43,7 +44,7 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="text-sm leading-relaxed">
-          We do not collect any government ID, and Lalamove riders do not ask you for one.
+          We do not collect any government ID.
         </p>
       </PolicySection>
 

@@ -42,8 +42,8 @@ export default function SuccessContent() {
           </div>
         )}
         <p>
-          We have securely received your order and proof of payment. Our admin team will manually
-          verify your payment within the next 24 hours.
+          We have securely received your order and proof of payment. Our admin team will verify
+          your payment, and shipping starts after verification.
         </p>
         {isPickup ? (
           <p>
