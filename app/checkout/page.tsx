@@ -680,7 +680,7 @@ export default function CheckoutPage() {
             </div>
 
             <p className="text-xs text-[#6B6B6B] mt-4">
-              Online orders are final.{" "}
+              Replacement within 7 days for eligible items only.{" "}
               <Link href="/returns" className="underline hover:text-[#0A0A0A] transition-colors">
                 See our Return Policy.
               </Link>

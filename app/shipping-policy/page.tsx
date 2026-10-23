@@ -30,10 +30,10 @@ export default function ShippingPolicyPage() {
           <li>
             <strong>Lalamove</strong> &mdash; Metro Manila only. Orders are processed for
             same-day delivery on the day the payment is verified, regardless of what time the
-            order was placed. Because payments are verified manually (within 24 hours),
-            same-day delivery starts once payment is verified, not when the order is placed.
-            The buyer pays the rider&apos;s delivery fee directly. Delivery time is subject to
-            rider availability and traffic or weather conditions.
+            order was placed. Payments are verified by our staff, so same-day delivery starts
+            once payment is verified, not when the order is placed. The buyer pays the
+            rider&apos;s delivery fee directly. Delivery time is subject to rider availability
+            and traffic or weather conditions.
           </li>
           <li>
             <strong>Store Pickup</strong> &mdash; Free pickup at our store:{" "}
@@ -52,8 +52,9 @@ export default function ShippingPolicyPage() {
 
       <PolicySection heading="Processing and delivery">
         <p className="text-sm leading-relaxed">
-          Items ship after payment verification. Please make sure you give a complete and
-          correct address and contact number so we can deliver your order without delay.
+          Our staff verifies your payment, and items ship after verification. Please make sure
+          you give a complete and correct address and contact number so we can deliver your order
+          without delay.
         </p>
       </PolicySection>
     </PolicyPage>
