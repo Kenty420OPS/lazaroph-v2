@@ -12,6 +12,10 @@ export const STORE_INFO = {
 export const POLICY_LAST_UPDATED = "2026-10-23";
 export const POLICY_LAST_UPDATED_DISPLAY = "October 23, 2026";
 
+// Version stamped into the storefront policy agreement, so the gate re-opens
+// whenever the policies above get a new review date.
+export const POLICY_VERSION = POLICY_LAST_UPDATED;
+
 export function formatPolicyLastUpdated(isoDate: string = POLICY_LAST_UPDATED): string {
   if (isoDate === POLICY_LAST_UPDATED) {
     return POLICY_LAST_UPDATED_DISPLAY;
