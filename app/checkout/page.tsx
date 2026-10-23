@@ -678,6 +678,13 @@ export default function CheckoutPage() {
                 className="w-full min-h-11 bg-white border border-dashed border-[#0A0A0A]/20 rounded-lg p-2 text-sm text-[#0A0A0A] focus:border-[#0A0A0A] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0A0A0A] file:text-white hover:file:bg-[#0A0A0A]/90"
               />
             </div>
+
+            <p className="text-xs text-[#6B6B6B] mt-4">
+              Online orders are final.{" "}
+              <Link href="/returns" className="underline hover:text-[#0A0A0A] transition-colors">
+                See our Return Policy.
+              </Link>
+            </p>
           </div>
 
           {step === 1 && (

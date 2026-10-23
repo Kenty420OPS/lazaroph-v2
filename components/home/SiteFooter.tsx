@@ -8,6 +8,14 @@ const CUSTOMER_LINKS = [
   { label: "Create account", href: "/sign-up" },
 ];
 
+const POLICY_LINKS = [
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms and Conditions", href: "/terms" },
+  { label: "Shipping Policy", href: "/shipping-policy" },
+  { label: "Return and Exchange", href: "/returns" },
+  { label: "Contact", href: "/contact" },
+];
+
 // Homepage footer. Server-rendered: links and the pickup branch details only,
 // no client state. The logo sits on a white tile so the black artwork shows.
 export default function SiteFooter() {
@@ -92,7 +100,23 @@ export default function SiteFooter() {
           )}
         </div>
 
-        <div className="mt-10 pt-6 border-t border-white/10">
+        <nav aria-label="Policies" className="mt-10 pt-6 border-t border-white/10">
+          <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-white">Policies</h2>
+          <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+            {POLICY_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="inline-flex items-center min-h-11 text-base text-[#B3B3B3] hover:text-white transition-colors"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="mt-6 pt-6 border-t border-white/10">
           <p className="text-base text-[#B3B3B3]">
             © 2026 LAZAROPH — AUTHENTIC. LEGIT. BELOW MARKET PRICE. Retail Platform. All rights
             reserved.
