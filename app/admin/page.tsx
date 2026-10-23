@@ -60,13 +60,15 @@ export default function AdminPage() {
     setNotification({ message, type });
   };
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands" | "categories" | "dashboard">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands" | "categories" | "dashboard" | "reviews">("products");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [dashboard, setDashboard] = useState<any>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const [chats, setChats] = useState<any[]>([]);
@@ -438,6 +440,47 @@ export default function AdminPage() {
     }
   };
 
+  const loadReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) return;
+      const response = await fetch("/api/admin/reviews", {
+        headers: { "Authorization": authHeader },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReviews(data.reviews || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  const moderateReview = async (orderId: string, status: "approved" | "rejected") => {
+    try {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) return;
+      const response = await fetch("/api/admin/reviews", {
+        method: "PATCH",
+        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        showNotification(`Review ${status}.`, "success");
+        loadReviews();
+      } else {
+        showNotification("Error: " + (data.error || "Unknown error"), "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification("Failed to update review", "error");
+    }
+  };
+
   const updateOrderStatus = async (id: string, newStatus: string) => {
     try {
       const authHeader = await getAuthHeader();
@@ -724,6 +767,12 @@ export default function AdminPage() {
               className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "orders" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
             >
               Orders
+            </button>
+            <button
+              onClick={() => { setActiveTab("reviews"); loadReviews(); }}
+              className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "reviews" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
+            >
+              Reviews
             </button>
             <button
               onClick={() => setActiveTab("chats")}
@@ -1153,6 +1202,94 @@ export default function AdminPage() {
                   </div>
                 </div>
               </>
+            )}
+          </div>
+        )}
+
+        {activeTab === "reviews" && (
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
+              <div>
+                <h2 className="text-xl font-bold uppercase tracking-wider">Reviews</h2>
+                <p className="text-xs text-neutral-500 mt-1">Approve or reject customer ratings before they appear on product pages.</p>
+              </div>
+              <button
+                onClick={loadReviews}
+                className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {loadingReviews ? (
+              <div className="flex justify-center py-20 text-neutral-500">Loading reviews...</div>
+            ) : reviews.length === 0 ? (
+              <div className="text-center py-20 bg-neutral-950 border border-neutral-800 rounded-2xl text-neutral-500 text-sm">
+                No reviews yet.
+              </div>
+            ) : (
+              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-neutral-800 text-xs text-neutral-500 uppercase tracking-wider">
+                        <th className="p-4 font-bold">Order ID</th>
+                        <th className="p-4 font-bold">Rating</th>
+                        <th className="p-4 font-bold">Status</th>
+                        <th className="p-4 font-bold">Date</th>
+                        <th className="p-4 font-bold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reviews.map((review: any) => (
+                        <tr key={review.orderId} className="border-b border-neutral-900 hover:bg-neutral-900/40 transition-colors">
+                          <td className="p-4 text-xs font-mono text-neutral-300 max-w-[140px] truncate" title={review.orderId}>
+                            {review.orderId.slice(0, 8)}&hellip;
+                          </td>
+                          <td className="p-4 text-xs text-white">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span key={i} className={i < review.rating ? "text-white" : "text-neutral-700"}>&#9733;</span>
+                            ))}
+                            {" "}{review.rating}/5
+                          </td>
+                          <td className="p-4 text-xs">
+                            <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] ${
+                              review.status === "approved"
+                                ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                                : review.status === "rejected"
+                                ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                                : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                            }`}>
+                              {review.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-xs text-neutral-400">
+                            {review.createdAt ? new Date(review.createdAt).toLocaleDateString("en-PH") : "—"}
+                          </td>
+                          <td className="p-4">
+                            {review.status === "pending" && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => moderateReview(review.orderId, "approved")}
+                                  className="px-3 py-1.5 bg-green-950 text-xs font-bold text-green-300 rounded-lg hover:bg-green-900 transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => moderateReview(review.orderId, "rejected")}
+                                  className="px-3 py-1.5 bg-red-950 text-xs font-bold text-red-300 rounded-lg hover:bg-red-900 transition-colors"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
           </div>
         )}

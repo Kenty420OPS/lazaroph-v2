@@ -34,6 +34,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const [notFound, setNotFound] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
+  const [productRatings, setProductRatings] = useState<Record<string, { average: number; count: number }>>({});
 
   // Fetch the product exclusively through the API Route Handler
   // (/api/products/[id]). AGENTS.md Rule #1: no direct Firestore calls in client components.
@@ -63,6 +64,15 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   useEffect(() => {
     fetchProduct();
   }, [params.id]);
+
+  useEffect(() => {
+    fetch("/api/reviews")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.ratings) setProductRatings(data.ratings);
+      })
+      .catch(() => {});
+  }, []);
 
   // Price display
   const priceNumber = Number(product?.price) || 0;
@@ -200,6 +210,11 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A0A0A]">
                 {product.name || "Untitled Product"}
               </h1>
+              {product.id && productRatings[product.id] && productRatings[product.id].count > 0 && (
+                <p className="mt-1 text-xs text-[#6B6B6B]">
+                  &#9733; {productRatings[product.id].average} ({productRatings[product.id].count} rating{productRatings[product.id].count !== 1 ? "s" : ""})
+                </p>
+              )}
 
               <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-[#6B6B6B]">
                 {product.sku && (
