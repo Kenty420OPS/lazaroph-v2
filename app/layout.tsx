@@ -10,6 +10,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ChatWidgetWrapper from "@/components/ChatWidgetWrapper";
 import PolicyGate from "@/components/PolicyGate";
+import SignInPrompt from "@/components/SignInPrompt";
 
 export default function RootLayout({
   children,
@@ -24,6 +25,7 @@ export default function RootLayout({
             {children}
             <ChatWidgetWrapper />
             <PolicyGate />
+            <SignInPrompt />
           </CartProvider>
         </AuthProvider>
       </body>
