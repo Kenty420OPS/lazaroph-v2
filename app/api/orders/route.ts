@@ -5,6 +5,7 @@ import { calculateShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } fr
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice, hasSizeSystem, getTotalStock } from "@/lib/product";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { POLICY_VERSION } from "@/lib/store-info";
 
 const MAX_QTY_PER_ITEM = 99;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
     const lbcFeeAcknowledged = formData.get("lbcFeeAcknowledged") as string | null;
     const paymentMethodId = (formData.get("paymentMethodId") as string | null) ?? "";
     const referenceNumberRaw = (formData.get("referenceNumber") as string | null) ?? "";
+    const policyVersionRaw = (formData.get("policyVersion") as string | null) ?? "";
     const cartStr = formData.get("cart") as string;
     const paymentImage = formData.get("paymentImage") as File;
 
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
     const contact = typeof contactRaw === "string" ? contactRaw.trim() : "";
     const address = typeof addressRaw === "string" ? addressRaw.trim() : "";
     const referenceNumber = typeof referenceNumberRaw === "string" ? referenceNumberRaw.trim() : "";
+    const policyVersion = typeof policyVersionRaw === "string" ? policyVersionRaw.trim() : "";
 
     // Derive the chat uid from a verified ID token only. The client-supplied
     // `uid` form field is NOT trusted for conversation writes.
@@ -135,6 +138,19 @@ export async function POST(request: Request) {
           { status: 409 }
         );
       }
+    }
+
+    // Policy agreement: the client sends the policy version the visitor
+    // accepted. This rejects BEFORE the payment proof is uploaded to Storage,
+    // so a rejected order never leaves an orphan image behind, and before the
+    // Firestore transaction. It runs after the rate limit and token check.
+    // Placed after the idempotency lookup so a retry of an existing order still
+    // returns that order without writing.
+    if (policyVersion !== POLICY_VERSION) {
+      return NextResponse.json(
+        { success: false, error: "Please agree to the store policies to place your order." },
+        { status: 400 }
+      );
     }
 
     // NOTE: client-sent `total` and `shippingFee` are intentionally ignored.
@@ -302,6 +318,11 @@ export async function POST(request: Request) {
       status: "pending_payment",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      // Server-side record of the policy agreement: the version the visitor
+      // accepted is validated above, the timestamp is server time (same
+      // convention as createdAt).
+      policyVersion,
+      policyAcceptedAt: new Date().toISOString(),
     };
 
     if (courier === "LBC" && region) {
