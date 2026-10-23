@@ -41,18 +41,22 @@ export default function ReturnsPage() {
         <p className="text-sm leading-relaxed">All items are sold &quot;as-is-where-is&quot;.</p>
       </PolicySection>
 
-      <PolicySection heading="Confirmed online orders are final">
+      <PolicySection heading="Cancelling an online order">
         <p className="text-sm leading-relaxed">
-          Confirmed ONLINE orders are final and cannot be reversed or cancelled.
+          An order is final once we have confirmed and shipped it (for store pickup, once we
+          have confirmed it and marked it ready for pickup). Before that, you may ask us to
+          cancel it by contacting us with your order ID. If an order is cancelled, the payment is
+          returned right away, as long as the account details you send us are correct.
         </p>
       </PolicySection>
 
       <PolicySection heading="Defective or wrong items">
         <p className="text-sm leading-relaxed">
           LAZAROPH is responsible only when there is proof that the item is defective or wrong.
-          Report it within 7 days of receipt with photos or video and the order ID via the{" "}
-          <Link href="/contact" className="underline">Contact page</Link> using the contact
-          details provided. If confirmed, we will replace the item.
+          Report it within 7 days of receipt with photos or video and the order ID by email or
+          call, using the details on the{" "}
+          <Link href="/contact" className="underline">Contact page</Link>. If confirmed, we will
+          replace the item.
         </p>
       </PolicySection>
     </PolicyPage>

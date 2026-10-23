@@ -31,8 +31,10 @@ export default function TermsPage() {
 
       <PolicySection heading="Orders and payment">
         <p className="text-sm leading-relaxed">
-          Orders are confirmed only after payment verification. Proof of payment is required
-          before we process your order. For more details, see our{" "}
+          When you submit your order with proof of payment, the order is created and starts as
+          Pending Payment. Our staff verifies your payment, and we confirm the order only after
+          that. Shipping or pickup preparation starts after verification. For more details, see
+          our{" "}
           <Link href="/shipping-policy" className="underline">
             Shipping Policy
           </Link>
@@ -40,14 +42,18 @@ export default function TermsPage() {
         </p>
       </PolicySection>
 
-      <PolicySection heading="Online orders are final">
+      <PolicySection heading="Cancelling an order">
         <p className="text-sm leading-relaxed">
-          Confirmed online orders are final and cannot be reversed or cancelled. For eligible
-          replacements, please see our <Link href="/returns" className="underline">Return and Exchange Policy</Link>
-          .
+          An order is final once we have confirmed and shipped it (for store pickup, once we
+          have confirmed it and marked it ready for pickup). Before that, you may ask us to
+          cancel it by contacting us with your order ID. If an order is cancelled, the payment is
+          returned right away, as long as the account details you send us are correct. For eligible
+          replacements after you receive your order, please see our{" "}
+          <Link href="/returns" className="underline">Return and Exchange Policy</Link>.
         </p>
       </PolicySection>
 
+      {/* TODO: lawyer review before launch */}
       <PolicySection heading="Our right to cancel">
         <p className="text-sm leading-relaxed">
           We may cancel an order due to stock or pricing errors. If we cancel for these reasons
@@ -55,6 +61,7 @@ export default function TermsPage() {
         </p>
       </PolicySection>
 
+      {/* TODO: lawyer review before launch */}
       <PolicySection heading="Limitation of liability">
         <p className="text-sm leading-relaxed">
           To the fullest extent allowed by law, LAZAROPH will not be liable for any indirect or
