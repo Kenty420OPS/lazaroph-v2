@@ -176,7 +176,7 @@ export default function Home() {
                     {point.icon}
                   </span>
                   <h3 className="text-lg font-black uppercase tracking-wide">{point.title}</h3>
-                  <p className="text-base leading-relaxed text-[#B3B3B3]">{point.body}</p>
+                  <p className="text-base leading-relaxed text-[#999999]">{point.body}</p>
                 </div>
               ))}
             </div>
