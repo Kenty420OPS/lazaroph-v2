@@ -63,6 +63,11 @@ function ShopPageContent() {
     return param && param.trim().length > 0 ? param.trim() : "All";
   });
 
+  useEffect(() => {
+    const param = searchParams.get("brand");
+    setSelectedBrand(param && param.trim().length > 0 ? param.trim() : "All");
+  }, [searchParams]);
+
   // Fetch products exclusively through the API Route Handler (/api/products)
   // Strict compliance with AGENTS.md Rule #1: No direct Firestore calls in client components.
   const fetchProducts = async () => {
