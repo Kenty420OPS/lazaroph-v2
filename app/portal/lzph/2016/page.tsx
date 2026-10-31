@@ -425,6 +425,32 @@ export default function AdminPage() {
     }
   };
 
+  // Product search: debounce 300ms, then reload from the server.
+  // Skipped while signed out (the initial load happens after login).
+  useEffect(() => {
+    if (!user) return;
+    const t = setTimeout(() => {
+      const q = productSearch.trim();
+      setDebouncedProductSearch(q);
+      verifyAndLoad(q);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productSearch]);
+
+  // Order search: debounce 300ms, then reload together with the current
+  // status and date filters.
+  useEffect(() => {
+    if (!user) return;
+    const t = setTimeout(() => {
+      const q = orderSearch.trim();
+      setDebouncedOrderSearch(q);
+      verifyAndLoadOrders(ordersDateRange, statusFilter, q);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderSearch]);
+
   const loadDashboard = async (range: DateRange | null = salesDateRange) => {
     setLoadingDashboard(true);
     try {
