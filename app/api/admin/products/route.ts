@@ -220,8 +220,11 @@ export async function GET(request: Request) {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get("q")?.trim().toLowerCase();
+
     const snapshot = await adminDb.collection("products").get();
-    const products = snapshot.docs.map((doc) => {
+    let products = snapshot.docs.map((doc) => {
       const data = (doc.data() as any) || {};
       return {
         id: doc.id,
@@ -243,6 +246,16 @@ export async function GET(request: Request) {
       if (!bValid) return -1;
       return bTime - aTime;
     });
+
+    if (q) {
+      products = products.filter((p: any) => {
+        const name = String(p.name || p.title || "").toLowerCase();
+        const brand = String(p.brand || "").toLowerCase();
+        const sku = String(p.sku || "").toLowerCase();
+        const id = String(p.id || "").toLowerCase();
+        return name.includes(q) || brand.includes(q) || sku.includes(q) || id.includes(q);
+      });
+    }
 
     return NextResponse.json({ success: true, products });
   } catch (error: any) {

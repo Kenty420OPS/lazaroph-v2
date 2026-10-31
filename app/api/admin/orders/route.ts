@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
-import { isValidStatusForCourier } from "@/lib/order-status";
+import { isValidStatusForCourier, normalizeStatus } from "@/lib/order-status";
 import { hasSizeSystem, getTotalStock } from "@/lib/product";
+import { toDate, manilaDay, parseDateRange, isInRange } from "@/lib/admin-date";
 
 export const dynamic = "force-dynamic";
 
@@ -29,61 +30,116 @@ export async function GET(request: Request) {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const dateRangeResult = parseDateRange(searchParams);
+    if (dateRangeResult && "error" in dateRangeResult) {
+      return NextResponse.json(
+        { success: false, error: dateRangeResult.error },
+        { status: 400 }
+      );
+    }
+
+    const statusParam = searchParams.get("status");
+    const searchQuery = searchParams.get("q")?.trim().toLowerCase();
+
     const snapshot = await adminDb!.collection("orders").orderBy("createdAt", "desc").get();
-    
-    // Process orders to inject short-lived signed URLs for payment proof images
+
+    let matchedDocs = snapshot.docs;
+
+    if (dateRangeResult) {
+      matchedDocs = matchedDocs.filter((doc) => {
+        const created = toDate(doc.data()?.createdAt);
+        if (!created) return false;
+        const day = manilaDay(created);
+        return isInRange(day, dateRangeResult.from, dateRangeResult.to);
+      });
+    }
+
+    if (statusParam && statusParam !== "All") {
+      matchedDocs = matchedDocs.filter((doc) => {
+        const s = normalizeStatus(doc.data()?.status);
+        return s === normalizeStatus(statusParam);
+      });
+    }
+
+    if (searchQuery) {
+      matchedDocs = matchedDocs.filter((doc) => {
+        const data = doc.data();
+        const id = (doc.id || "").toLowerCase();
+        const customerName = (data.customer?.name || "").toLowerCase();
+        const customerContact = (data.customer?.contact || "").toLowerCase();
+        const refNum = (data.payment?.referenceNumber || "").toLowerCase();
+        return (
+          id.includes(searchQuery) ||
+          customerName.includes(searchQuery) ||
+          customerContact.includes(searchQuery) ||
+          refNum.includes(searchQuery)
+        );
+      });
+    }
+
+    // Process filtered orders to inject short-lived signed URLs for payment proof images
     const bucket = adminStorage.bucket();
-    const orders = await Promise.all(snapshot.docs.map(async (doc) => {
-      const data = doc.data();
-      let secureUrl = null;
-      
-      // Determine the storage path (use explicit field or extract from legacy URL)
-      let storagePath = data.payment?.proofImagePath;
-      if (!storagePath && data.payment?.proofImageUrl) {
-        // Try to parse legacy URL: https://firebasestorage.googleapis.com/v0/b/.../o/payments%2F123.jpg?alt=media
-        try {
-          const urlObj = new URL(data.payment.proofImageUrl);
-          const pathParam = urlObj.pathname.split('/o/')[1];
-          if (pathParam) {
-            storagePath = decodeURIComponent(pathParam);
+    const orders = await Promise.all(
+      matchedDocs.map(async (doc) => {
+        const data = doc.data();
+        let secureUrl = null;
+
+        // Determine the storage path (use explicit field or extract from legacy URL)
+        let storagePath = data.payment?.proofImagePath;
+        if (!storagePath && data.payment?.proofImageUrl) {
+          // Try to parse legacy URL: https://firebasestorage.googleapis.com/v0/b/.../o/payments%2F123.jpg?alt=media
+          try {
+            const urlObj = new URL(data.payment.proofImageUrl);
+            const pathParam = urlObj.pathname.split("/o/")[1];
+            if (pathParam) {
+              storagePath = decodeURIComponent(pathParam);
+            }
+          } catch (e) {
+            console.error("Failed to parse legacy proof image URL:", e);
           }
-        } catch (e) {
-          console.error("Failed to parse legacy proof image URL:", e);
         }
-      }
 
-      // Validate storagePath to prevent directory traversal and unauthorized access
-      if (storagePath) {
-        if (!storagePath.startsWith("payments/") || storagePath.includes("..")) {
-          console.warn("Invalid storagePath detected, skipping signed URL generation:", storagePath);
-          storagePath = null;
+        // Validate storagePath to prevent directory traversal and unauthorized access
+        if (storagePath) {
+          if (!storagePath.startsWith("payments/") || storagePath.includes("..")) {
+            console.warn(
+              "Invalid storagePath detected, skipping signed URL generation:",
+              storagePath
+            );
+            storagePath = null;
+          }
         }
-      }
 
-      if (storagePath) {
-        try {
-          // Generate a 60-minute signed URL
-          const [url] = await bucket.file(storagePath).getSignedUrl({
-            version: 'v4',
-            action: 'read',
-            expires: Date.now() + 60 * 60 * 1000,
-          });
-          secureUrl = url;
-        } catch (e) {
-          console.error("Failed to generate signed URL for", storagePath, e);
+        if (storagePath) {
+          try {
+            // Generate a 60-minute signed URL
+            const [url] = await bucket.file(storagePath).getSignedUrl({
+              version: "v4",
+              action: "read",
+              expires: Date.now() + 60 * 60 * 1000,
+            });
+            secureUrl = url;
+          } catch (e) {
+            console.error("Failed to generate signed URL for", storagePath, e);
+          }
         }
-      }
 
-      return { 
-        id: doc.id, 
-        ...data,
-        payment: {
-          ...data.payment,
-          // Inject the secure temporary URL for the admin UI to use
-          secureProofImageUrl: secureUrl || data.payment?.proofImageUrl
-        }
-      };
-    }));
+        const created = toDate(data.createdAt);
+        const dateManila = created ? manilaDay(created) : null;
+
+        return {
+          id: doc.id,
+          ...data,
+          dateManila,
+          payment: {
+            ...data.payment,
+            // Inject the secure temporary URL for the admin UI to use
+            secureProofImageUrl: secureUrl || data.payment?.proofImageUrl,
+          },
+        };
+      })
+    );
 
     return NextResponse.json({ success: true, orders }, { status: 200 });
   } catch (error: any) {
