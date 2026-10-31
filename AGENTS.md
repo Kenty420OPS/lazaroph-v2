@@ -314,13 +314,13 @@ Store Settings and payment methods management.
 11. Products gap: brand matching is exact and case-sensitive; renaming brands is not supported.
 12. Products gap: the brand in-use check on delete is not atomic with product creation (very small race).
 
-### Chat image messages (In progress)
+### Chat image messages (Done)
 - Customers (storefront chat widget) and admins (Chats tab in app/portal/lzph/2016/page.tsx) can attach one image per message, with or without text. JPEG/PNG/WebP only, client-side compression via lib/client-image.ts compressImage (1 MB output cap), 5 MB input pre-check, and a preview with a Remove button before sending.
 - Image messages go through `POST /api/chat/send` (not direct Firestore writes): verify Firebase ID token (401 without a valid token), customer must target their own conversation id = uid (403 otherwise), admin may target an existing conversation, server-side magic-byte validation via lib/image-validation.ts (1 MB cap), Admin SDK upload to `chat/{conversationId}/{uuid}.{ext}`, then message + conversation update in one Firestore transaction with file rollback on failure. Text-only messages keep the existing direct client path unchanged.
 - `GET /api/chat/image?path=chat/<conversationId>/<file>` serves the image only to that customer or an admin (401 without a valid token, 403 for another customer's conversation). components/ChatImage.tsx loads it with the ID token into a blob URL, with loading and "Image unavailable" states, and opens the full size in a new tab.
 - Conversation `lastMessage` is "Photo" for image-only messages (the text when text is present); unreadAdmin / unreadCustomer behaviour is unchanged. Basic abuse protection: 5 image uploads per conversation per minute via the existing in-memory lib/rate-limit.ts (per serverless instance, same caveat as the other limiters).
-- storage.rules adds an explicit deny for `chat/` (client reads/writes are never allowed; the API uses the Admin SDK). Rules are in the repo but NOT deployed yet: run `firebase deploy --only storage`.
-- New: app/api/chat/send/route.ts, app/api/chat/image/route.ts, lib/chat.ts, components/ChatImage.tsx. Changed: components/ChatWidget.tsx, app/portal/lzph/2016/page.tsx (Chats tab only), storage.rules. No Firestore rules change needed because image messages are written by the API. Not yet browser-verified (build passes).
+- storage.rules adds an explicit deny for `chat/` (client reads/writes are never allowed; the API uses the Admin SDK). Rules deployed with `npx firebase deploy --only storage`.
+- New: app/api/chat/send/route.ts, app/api/chat/image/route.ts, lib/chat.ts, components/ChatImage.tsx. Changed: components/ChatWidget.tsx, app/portal/lzph/2016/page.tsx (Chats tab only), storage.rules. No Firestore rules change needed because image messages are written by the API. Verified in production in the browser (customer and admin).
 
 ### Known gaps (post-PR #30)
 - In-memory rate limiting is per serverless instance, not shared across Vercel cold-start instances. It slows simple abuse but does not provide a hard global cap. If shared IPs get spurious 429s, raise the limit or migrate to an external store (e.g. Upstash Redis).
