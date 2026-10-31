@@ -1652,7 +1652,7 @@ export default function AdminPage() {
                       <div className="text-left md:text-right">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Info</h3>
                         <p className="text-white text-sm">ID: <span className="font-mono text-neutral-500">{selectedOrder.id}</span></p>
-                        <p className="text-white text-sm">Date: {new Date(selectedOrder.createdAt).toLocaleDateString()} {new Date(selectedOrder.createdAt).toLocaleTimeString()}</p>
+                        <p className="text-white text-sm">Date: {selectedOrder.createdAt ? new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedOrder.createdAt)) : "—"}</p>
                         <p className="text-white text-sm">Method: {selectedOrder.payment?.method}</p>
                         <p className="text-white text-sm">Ref: {selectedOrder.payment?.referenceNumber}</p>
                       </div>
