@@ -10,6 +10,7 @@ import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
 import BrandsSettings from "@/components/BrandsSettings";
 import CategoriesSettings from "@/components/CategoriesSettings";
+import DateRangePicker, { type DateRange } from "@/components/admin/DateRangePicker";
 import {
   ORDER_STATUSES,
   getAllowedStatuses,
@@ -63,6 +64,14 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<"products" | "orders" | "chats" | "adminmgmt" | "settings" | "brands" | "categories" | "dashboard" | "reviews">("products");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const [salesDateRange, setSalesDateRange] = useState<DateRange | null>(null);
+  const [ordersDateRange, setOrdersDateRange] = useState<DateRange | null>(null);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [debouncedOrderSearch, setDebouncedOrderSearch] = useState("");
+  const [reviewsDateRange, setReviewsDateRange] = useState<DateRange | null>(null);
+  const [reviewsDaily, setReviewsDaily] = useState<Array<{ date: string; count: number }>>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [dashboard, setDashboard] = useState<any>(null);
@@ -189,13 +198,15 @@ export default function AdminPage() {
     setProducts([]);
   };
 
-  const verifyAndLoad = async () => {
+  const verifyAndLoad = async (search: string = debouncedProductSearch) => {
     setLoading(true);
     setError("");
     try {
       const authHeader = await getAuthHeader();
       if (!authHeader) return;
-      const response = await fetch("/api/admin/products", {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("q", search.trim());
+      const response = await fetch(`/api/admin/products${params.toString() ? `?${params.toString()}` : ""}`, {
         headers: { "Authorization": authHeader },
       });
       const data = await response.json();
@@ -380,12 +391,27 @@ export default function AdminPage() {
     return "Bearer " + token;
   };
 
-  const verifyAndLoadOrders = async () => {
+  const verifyAndLoadOrders = async (
+    range: DateRange | null = ordersDateRange,
+    status: string = statusFilter,
+    search: string = debouncedOrderSearch
+  ) => {
     setLoadingOrders(true);
     try {
       const authHeader = await getAuthHeader();
       if (!authHeader) return;
-      const response = await fetch("/api/admin/orders", {
+      const params = new URLSearchParams();
+      if (range) {
+        params.set("from", range.from);
+        params.set("to", range.to);
+      }
+      if (status && status !== "All") {
+        params.set("status", status);
+      }
+      if (search.trim()) {
+        params.set("q", search.trim());
+      }
+      const response = await fetch(`/api/admin/orders${params.toString() ? `?${params.toString()}` : ""}`, {
         headers: { "Authorization": authHeader }
       });
       const data = await response.json();
@@ -399,12 +425,17 @@ export default function AdminPage() {
     }
   };
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (range: DateRange | null = salesDateRange) => {
     setLoadingDashboard(true);
     try {
       const authHeader = await getAuthHeader();
       if (!authHeader) return;
-      const response = await fetch("/api/admin/dashboard", {
+      const params = new URLSearchParams();
+      if (range) {
+        params.set("from", range.from);
+        params.set("to", range.to);
+      }
+      const response = await fetch(`/api/admin/dashboard${params.toString() ? `?${params.toString()}` : ""}`, {
         headers: { "Authorization": authHeader },
       });
       const data = await response.json();
@@ -422,7 +453,12 @@ export default function AdminPage() {
     try {
       const authHeader = await getAuthHeader();
       if (!authHeader) return;
-      const response = await fetch("/api/admin/dashboard?format=csv", {
+      const params = new URLSearchParams({ format: "csv" });
+      if (salesDateRange) {
+        params.set("from", salesDateRange.from);
+        params.set("to", salesDateRange.to);
+      }
+      const response = await fetch(`/api/admin/dashboard?${params.toString()}`, {
         headers: { "Authorization": authHeader },
       });
       if (!response.ok) return;
@@ -440,17 +476,23 @@ export default function AdminPage() {
     }
   };
 
-  const loadReviews = async () => {
+  const loadReviews = async (range: DateRange | null = reviewsDateRange) => {
     setLoadingReviews(true);
     try {
       const authHeader = await getAuthHeader();
       if (!authHeader) return;
-      const response = await fetch("/api/admin/reviews", {
+      const params = new URLSearchParams();
+      if (range) {
+        params.set("from", range.from);
+        params.set("to", range.to);
+      }
+      const response = await fetch(`/api/admin/reviews${params.toString() ? `?${params.toString()}` : ""}`, {
         headers: { "Authorization": authHeader },
       });
       const data = await response.json();
       if (data.success) {
         setReviews(data.reviews || []);
+        setReviewsDaily(data.daily || []);
       }
     } catch (err) {
       console.error(err);
@@ -1064,9 +1106,38 @@ export default function AdminPage() {
             </div>
 
             <div className="lg:col-span-7 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-                <h2 className="text-base font-bold text-white uppercase tracking-wider">Product Catalog</h2>
-                <button onClick={verifyAndLoad} className="text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-lg">Refresh ?</button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-neutral-800 gap-3">
+                <div>
+                  <h2 className="text-base font-bold text-white uppercase tracking-wider">Product Catalog</h2>
+                  <p className="text-[10px] text-neutral-500">
+                    Showing {products.length} product{products.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button onClick={() => verifyAndLoad(debouncedProductSearch)} className="text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-lg hover:text-white transition-colors self-start sm:self-auto">Refresh</button>
+              </div>
+
+              {/* Product search bar */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Search by product name, brand, SKU or ID..."
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 pl-10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition-colors"
+                />
+                <svg className="absolute left-3.5 top-3 w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {productSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setProductSearch("")}
+                    className="absolute right-3 top-2.5 text-neutral-500 hover:text-white text-xs px-1.5 py-0.5 rounded transition-colors"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
               {loading ? (
@@ -1074,7 +1145,20 @@ export default function AdminPage() {
                   <div className="h-20 bg-neutral-900 rounded-xl animate-pulse"></div>
                 </div>
               ) : products.length === 0 ? (
+                productSearch.trim() ? (
+                <div className="p-8 text-center bg-neutral-950 border border-neutral-800 rounded-2xl text-neutral-400 text-xs space-y-3">
+                  <p>No products found matching &ldquo;{productSearch}&rdquo;.</p>
+                  <button
+                    type="button"
+                    onClick={() => setProductSearch("")}
+                    className="px-3 py-1.5 bg-neutral-900 border border-neutral-700 text-white font-bold rounded-lg hover:bg-neutral-800 transition-colors"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              ) : (
                 <div className="p-8 text-center bg-neutral-950 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">No products found.</div>
+              )
               ) : (
                 <div className="space-y-3">
                   {products.map((p) => (
@@ -1129,14 +1213,14 @@ export default function AdminPage() {
 
         {activeTab === "dashboard" && userRole === 'superadmin' && (
           <div className="max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
               <div>
                 <h2 className="text-xl font-bold uppercase tracking-wider">Sales &amp; Financials</h2>
-                <p className="text-xs text-neutral-500 mt-1">Revenue from confirmed, shipped, ready for pickup, picked up, and completed orders only.</p>
+                <p className="text-xs text-neutral-500 mt-1">Revenue from confirmed, shipped, ready for pickup, picked up, and completed orders (Asia/Manila time).</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={loadDashboard}
+                  onClick={() => loadDashboard(salesDateRange)}
                   className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors"
                 >
                   Refresh
@@ -1150,6 +1234,20 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Date filter */}
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Date Filter</span>
+                <DateRangePicker
+                  range={salesDateRange}
+                  onChange={(r) => {
+                    setSalesDateRange(r);
+                    loadDashboard(r);
+                  }}
+                />
+              </div>
+            </div>
+
             {loadingDashboard ? (
               <div className="flex justify-center py-20 text-neutral-500">Loading dashboard...</div>
             ) : !dashboard ? (
@@ -1158,16 +1256,32 @@ export default function AdminPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6">
-                    <p className="text-xs text-neutral-500 uppercase tracking-wider font-bold mb-1">Total Revenue</p>
-                    <p className="text-3xl font-black text-white">
-                      &#8369;{dashboard.totals.revenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5">
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold mb-1">Total Revenue</p>
+                    <p className="text-2xl font-black text-white">
+                      ₱{(dashboard.totals?.total ?? dashboard.totals?.revenue ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6">
-                    <p className="text-xs text-neutral-500 uppercase tracking-wider font-bold mb-1">Total Orders</p>
-                    <p className="text-3xl font-black text-white">{dashboard.totals.orders}</p>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5">
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold mb-1">Total Orders</p>
+                    <p className="text-2xl font-black text-white">{dashboard.totals?.orders ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5">
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold mb-1">Items Sold</p>
+                    <p className="text-2xl font-black text-white">{dashboard.totals?.itemsSold ?? 0}</p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5">
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold mb-1">Subtotal</p>
+                    <p className="text-2xl font-black text-white">
+                      ₱{(dashboard.totals?.subtotal ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5">
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold mb-1">Shipping Fees</p>
+                    <p className="text-2xl font-black text-white">
+                      ₱{(dashboard.totals?.shippingFees ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
                   </div>
                 </div>
 
@@ -1178,24 +1292,50 @@ export default function AdminPage() {
                         <tr className="border-b border-neutral-800 text-xs text-neutral-500 uppercase tracking-wider">
                           <th className="p-4 font-bold">Date</th>
                           <th className="p-4 font-bold">Orders</th>
-                          <th className="p-4 font-bold">Revenue (&#8369;)</th>
+                          <th className="p-4 font-bold">Items Sold</th>
+                          <th className="p-4 font-bold">Subtotal (₱)</th>
+                          <th className="p-4 font-bold">Shipping (₱)</th>
+                          <th className="p-4 font-bold">Total (₱)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {dashboard.days.length === 0 ? (
+                        {(!dashboard.days || dashboard.days.length === 0) ? (
                           <tr>
-                            <td colSpan={3} className="p-8 text-center text-neutral-500 text-sm">No revenue data yet.</td>
+                            <td colSpan={6} className="p-8 text-center text-neutral-500 text-sm">No revenue data for the selected period.</td>
                           </tr>
                         ) : (
-                          dashboard.days.map((d: { date: string; orders: number; revenue: number }) => (
-                            <tr key={d.date} className="border-b border-neutral-900 hover:bg-neutral-900/40 transition-colors">
-                              <td className="p-4 text-xs font-mono text-neutral-300">{d.date}</td>
-                              <td className="p-4 text-xs text-white">{d.orders}</td>
-                              <td className="p-4 text-xs text-white font-bold">
-                                {d.revenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <>
+                            {dashboard.days.map((d: any) => (
+                              <tr key={d.date} className="border-b border-neutral-900 hover:bg-neutral-900/40 transition-colors">
+                                <td className="p-4 text-xs font-mono text-neutral-300">{d.date}</td>
+                                <td className="p-4 text-xs text-white">{d.orders}</td>
+                                <td className="p-4 text-xs text-white">{d.itemsSold ?? 0}</td>
+                                <td className="p-4 text-xs text-white">
+                                  {(d.subtotal ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="p-4 text-xs text-white">
+                                  {(d.shippingFees ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="p-4 text-xs text-white font-bold">
+                                  {(d.total ?? d.revenue ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="border-t-2 border-neutral-700 bg-neutral-900/70 font-bold text-xs text-white">
+                              <td className="p-4 uppercase tracking-wider font-black">Grand Total</td>
+                              <td className="p-4">{dashboard.totals?.orders ?? 0}</td>
+                              <td className="p-4">{dashboard.totals?.itemsSold ?? 0}</td>
+                              <td className="p-4">
+                                ₱{(dashboard.totals?.subtotal ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="p-4">
+                                ₱{(dashboard.totals?.shippingFees ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="p-4 font-black">
+                                ₱{(dashboard.totals?.total ?? dashboard.totals?.revenue ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                             </tr>
-                          ))
+                          </>
                         )}
                       </tbody>
                     </table>
@@ -1214,12 +1354,41 @@ export default function AdminPage() {
                 <p className="text-xs text-neutral-500 mt-1">Approve or reject customer ratings before they appear on product pages.</p>
               </div>
               <button
-                onClick={loadReviews}
+                onClick={() => loadReviews(reviewsDateRange)}
                 className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors"
               >
                 Refresh
               </button>
             </div>
+
+            {/* Date filter */}
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Date Filter</span>
+                <DateRangePicker
+                  range={reviewsDateRange}
+                  onChange={(r) => {
+                    setReviewsDateRange(r);
+                    loadReviews(r);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Per-day count summary */}
+            {reviewsDaily.length > 0 && (
+              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4">
+                <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Daily Review Counts</h3>
+                <div className="flex flex-wrap gap-2">
+                  {reviewsDaily.map((d) => (
+                    <div key={d.date} className="bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
+                      <span className="font-mono text-neutral-300">{d.date}:</span>
+                      <span className="font-bold text-white bg-black px-1.5 py-0.5 rounded border border-neutral-800">{d.count} review{d.count === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {loadingReviews ? (
               <div className="flex justify-center py-20 text-neutral-500">Loading reviews...</div>
@@ -1263,8 +1432,8 @@ export default function AdminPage() {
                               {review.status}
                             </span>
                           </td>
-                          <td className="p-4 text-xs text-neutral-400">
-                            {review.createdAt ? new Date(review.createdAt).toLocaleDateString("en-PH") : "—"}
+                          <td className="p-4 text-xs text-neutral-400 font-mono">
+                            {review.dateManila || (review.createdAt ? new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium" }).format(new Date(review.createdAt)) : "—")}
                           </td>
                           <td className="p-4">
                             {review.status === "pending" && (
@@ -1300,20 +1469,65 @@ export default function AdminPage() {
               <>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-4 gap-4">
                   <h2 className="text-xl font-bold uppercase tracking-wider">Orders Management</h2>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => verifyAndLoadOrders(ordersDateRange, statusFilter, debouncedOrderSearch)}
+                      className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filters bar: Search, Status, and DateRangePicker */}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                  <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={orderSearch}
+                        onChange={(e) => setOrderSearch(e.target.value)}
+                        placeholder="Search orders by ID, customer name, contact, or ref #..."
+                        className="w-full bg-black border border-neutral-800 rounded-lg px-3 py-2 pl-9 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition-colors"
+                      />
+                      <svg className="absolute left-3 top-2.5 w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      {orderSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setOrderSearch("")}
+                          className="absolute right-2.5 top-2 text-neutral-500 hover:text-white text-xs px-1 rounded"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
                     <select
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="bg-neutral-900 border border-neutral-800 text-white text-xs px-3 py-2 rounded-lg"
+                      onChange={(e) => {
+                        setStatusFilter(e.target.value);
+                        verifyAndLoadOrders(ordersDateRange, e.target.value, debouncedOrderSearch);
+                      }}
+                      className="bg-black border border-neutral-800 text-white text-xs px-3 py-2 rounded-lg shrink-0"
                     >
                       <option value="All">All Statuses</option>
                       {ORDER_STATUSES.map((s) => (
                         <option key={s} value={s}>{getStatusLabel(s)}</option>
                       ))}
                     </select>
-                    <button onClick={verifyAndLoadOrders} className="bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white text-xs px-4 py-2 rounded-lg transition-colors">
-                      Refresh
-                    </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Date Filter</span>
+                    <DateRangePicker
+                      range={ordersDateRange}
+                      onChange={(r) => {
+                        setOrdersDateRange(r);
+                        verifyAndLoadOrders(r, statusFilter, debouncedOrderSearch);
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -1357,7 +1571,7 @@ export default function AdminPage() {
                           return (
                             <tr key={order.id} onClick={() => setSelectedOrder(order)} className="border-b border-neutral-800 hover:bg-neutral-900/50 cursor-pointer transition-colors text-sm">
                               <td className="p-4 font-mono text-neutral-400">{order.id.slice(0, 8)}...</td>
-                              <td className="p-4 text-neutral-400 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString()}</td>
+                              <td className="p-4 text-neutral-400 whitespace-nowrap font-mono text-xs">{order.dateManila || (order.createdAt ? new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium" }).format(new Date(order.createdAt)) : "—")}</td>
                               <td className="p-4 font-bold text-white">{order.customer?.name}</td>
                               <td className="p-4 font-bold text-white">₱{Number(order.total || 0).toLocaleString("en-PH")}</td>
                               <td className="p-4">
