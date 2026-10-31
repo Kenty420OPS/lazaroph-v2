@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyAdminRequest } from "@/lib/admin-auth";
+import { toDate, manilaDay, parseDateRange, isInRange } from "@/lib/admin-date";
 
 export const dynamic = "force-dynamic";
 
@@ -14,26 +15,52 @@ export async function GET(request: Request) {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const dateRangeResult = parseDateRange(searchParams);
+    if (dateRangeResult && "error" in dateRangeResult) {
+      return NextResponse.json(
+        { success: false, error: dateRangeResult.error },
+        { status: 400 }
+      );
+    }
+
     const snapshot = await adminDb!
       .collection("reviews")
       .orderBy("createdAt", "desc")
       .get();
 
-    const reviews = snapshot.docs.map((doc) => {
+    const allReviews = snapshot.docs.map((doc) => {
       const d = doc.data();
+      const created = toDate(d.createdAt);
+      const dateManila = created ? manilaDay(created) : null;
       return {
         orderId: d.orderId,
         rating: d.rating,
         productIds: d.productIds,
         status: d.status,
+        dateManila,
         createdAt:
-          d.createdAt && typeof d.createdAt.toDate === "function"
-            ? d.createdAt.toDate().toISOString()
+          created
+            ? created.toISOString()
             : d.createdAt ?? null,
       };
     });
 
-    return NextResponse.json({ success: true, reviews }, { status: 200 });
+    const reviews = dateRangeResult
+      ? allReviews.filter((r) => r.dateManila && isInRange(r.dateManila, dateRangeResult.from, dateRangeResult.to))
+      : allReviews;
+
+    const dailyCounts: Record<string, number> = {};
+    for (const r of reviews) {
+      if (r.dateManila) {
+        dailyCounts[r.dateManila] = (dailyCounts[r.dateManila] || 0) + 1;
+      }
+    }
+    const daily = Object.entries(dailyCounts)
+      .sort(([a], [b]) => (a < b ? 1 : -1))
+      .map(([date, count]) => ({ date, count }));
+
+    return NextResponse.json({ success: true, reviews, daily, totalCount: reviews.length }, { status: 200 });
   } catch (error: any) {
     console.error("GET /api/admin/reviews error:", error);
     return NextResponse.json(
