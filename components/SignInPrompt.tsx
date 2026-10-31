@@ -37,7 +37,7 @@ function markPromptShown(): void {
 }
 
 function isExcludedPath(pathname: string): boolean {
-  if (pathname.startsWith("/admin")) return true;
+  if (pathname.startsWith("/portal/lzph/2016")) return true;
   if (pathname === "/sign-in" || pathname === "/sign-up") return true;
   return EXCLUDED_PATHS.includes(pathname);
 }

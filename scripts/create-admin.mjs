@@ -64,7 +64,7 @@ async function run() {
     }, { merge: true });
     
     console.log("? Role 'admin' assigned to document users/" + user.uid);
-    console.log("?? Setup complete! You can now log into the /admin panel using these credentials.");
+    console.log("?? Setup complete! You can now log into the admin panel using these credentials.");
     process.exit(0);
   }
 }

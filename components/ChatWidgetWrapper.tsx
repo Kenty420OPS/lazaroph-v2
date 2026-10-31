@@ -8,7 +8,7 @@ export default function ChatWidgetWrapper() {
 
   // Do not render the chat widget on the admin page, 
   // as the admin has their own dedicated chat dashboard.
-  if (pathname?.startsWith("/admin")) {
+  if (pathname?.startsWith("/portal/lzph/2016")) {
     return null;
   }
 
