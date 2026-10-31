@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, FormEvent, useRef } from "react";
+import { useEffect, useState, FormEvent, ChangeEvent, useRef } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
@@ -18,6 +18,8 @@ import {
   getStatusLabel,
 } from "@/lib/order-status";
 import { compressImage } from "@/lib/client-image";
+import { CHAT_ACCEPTED_IMAGE_TYPES, CHAT_IMAGE_INPUT_MAX_BYTES } from "@/lib/chat";
+import ChatImage from "@/components/ChatImage";
 import {
   REQUIRED_IMAGE_COUNT,
   MAX_PRODUCT_IMAGES_TOTAL_BYTES,
@@ -84,6 +86,10 @@ export default function AdminPage() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [chatImage, setChatImage] = useState<File | null>(null);
+  const [chatPreviewUrl, setChatPreviewUrl] = useState<string | null>(null);
+  const [chatImageError, setChatImageError] = useState("");
+  const [chatSending, setChatSending] = useState(false);
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -181,6 +187,13 @@ export default function AdminPage() {
       chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [chatMessages]);
+
+  // Revoke the local chat image preview URL when it changes or the page unmounts.
+  useEffect(() => {
+    return () => {
+      if (chatPreviewUrl) URL.revokeObjectURL(chatPreviewUrl);
+    };
+  }, [chatPreviewUrl]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -587,29 +600,105 @@ export default function AdminPage() {
     }
   };
 
+  const clearChatImage = () => {
+    setChatImage(null);
+    setChatPreviewUrl(null);
+    setChatImageError("");
+  };
+
+  const handleChatImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Allow picking the same file again after removing it.
+    e.target.value = "";
+    if (!file) return;
+
+    setChatImageError("");
+
+    if (!CHAT_ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof CHAT_ACCEPTED_IMAGE_TYPES)[number])) {
+      setChatImageError("Only JPEG, PNG, or WebP images are allowed.");
+      return;
+    }
+    if (file.size > CHAT_IMAGE_INPUT_MAX_BYTES) {
+      setChatImageError("Please choose an image under 5MB.");
+      return;
+    }
+
+    setChatImage(file);
+    setChatPreviewUrl(URL.createObjectURL(file));
+  };
+
   const sendChatMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || !activeChatId) return;
+    if (chatSending || !activeChatId) return;
 
     const text = chatInput.trim();
-    setChatInput("");
+
+    // Text-only replies keep using the existing direct Firestore path.
+    if (!chatImage) {
+      if (!text) return;
+
+      setChatInput("");
+
+      try {
+        await addDoc(collection(db, "conversations", activeChatId, "messages"), {
+          senderId: "admin",
+          role: "admin",
+          text,
+          createdAt: serverTimestamp(),
+          read: false
+        });
+        await updateDoc(doc(db, "conversations", activeChatId), {
+          lastMessage: text,
+          updatedAt: serverTimestamp(),
+          unreadCustomer: 1
+        });
+      } catch (err) {
+        console.error(err);
+        showNotification("Failed to send message", "error");
+      }
+      return;
+    }
+
+    setChatSending(true);
+    setChatImageError("");
 
     try {
-      await addDoc(collection(db, "conversations", activeChatId, "messages"), {
-        senderId: "admin",
-        role: "admin",
-        text,
-        createdAt: serverTimestamp(),
-        read: false
+      let file: File;
+      try {
+        file = await compressImage(chatImage);
+      } catch (err) {
+        setChatImageError(getUserErrorMessage(err, "Could not process that image."));
+        return;
+      }
+
+      const authHeader = await getAuthHeader();
+      if (!authHeader) throw new Error("Your session expired. Please sign in again.");
+
+      const formData = new FormData();
+      formData.append("conversationId", activeChatId);
+      if (text) formData.append("text", text);
+      formData.append("file", file);
+
+      const response = await fetch("/api/chat/send", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+        body: formData,
       });
-      await updateDoc(doc(db, "conversations", activeChatId), {
-        lastMessage: text,
-        updatedAt: serverTimestamp(),
-        unreadCustomer: 1
-      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          data && typeof data.error === "string" ? data.error : "Failed to send message"
+        );
+      }
+
+      setChatInput("");
+      clearChatImage();
     } catch (err) {
       console.error(err);
-      showNotification("Failed to send message", "error");
+      showNotification(getUserErrorMessage(err, "Failed to send message"), "error");
+      setChatImageError(getUserErrorMessage(err, "Failed to send message"));
+    } finally {
+      setChatSending(false);
     }
   };
 
@@ -1826,28 +1915,77 @@ export default function AdminPage() {
                             className={`max-w-[70%] rounded-xl px-4 py-2 text-sm ${msg.role === "admin" ? "bg-white text-black font-medium rounded-br-sm shadow-sm" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}
                             style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
                           >
-                            {msg.text}
+                            {msg.imagePath ? (
+                              <div className="space-y-2">
+                                <ChatImage path={msg.imagePath} />
+                                {msg.text && <div>{msg.text}</div>}
+                              </div>
+                            ) : (
+                              msg.text
+                            )}
                           </div>
                         </div>
                       ))
                     )}
                     <div ref={chatMessagesEndRef} />
                   </div>
-                  <form onSubmit={sendChatMessage} className="p-4 bg-neutral-950 border-t border-neutral-800 flex gap-3">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={e => setChatInput(e.target.value)}
-                      placeholder="Type a reply..."
-                      className="flex-1 bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-neutral-600 transition-colors"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!chatInput.trim()}
-                      className="bg-white text-black px-6 py-2 rounded-lg text-sm font-bold uppercase tracking-wider disabled:opacity-50 transition-opacity"
-                    >
-                      Send
-                    </button>
+                  <form onSubmit={sendChatMessage} className="p-4 bg-neutral-950 border-t border-neutral-800 flex flex-col gap-2">
+                    {chatImageError && (
+                      <div className="text-red-500 text-[10px] px-1 font-bold">{chatImageError}</div>
+                    )}
+                    {chatPreviewUrl && (
+                      <div className="flex items-center gap-2 bg-black border border-neutral-800 rounded-lg p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={chatPreviewUrl}
+                          alt="Selected attachment"
+                          className="h-14 w-14 rounded object-cover"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-[10px] text-neutral-400">
+                          {chatImage?.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={clearChatImage}
+                          disabled={chatSending}
+                          className="shrink-0 rounded px-2 py-1 text-xs text-neutral-400 transition-colors hover:text-white disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex gap-3">
+                      <label
+                        className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white ${chatSending ? "pointer-events-none opacity-50" : ""}`}
+                        title="Attach an image"
+                        aria-label="Attach an image"
+                      >
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleChatImageSelect}
+                          disabled={chatSending}
+                          className="hidden"
+                        />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                        </svg>
+                      </label>
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        placeholder="Type a reply..."
+                        className="flex-1 bg-black border border-neutral-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-neutral-600 transition-colors"
+                      />
+                      <button
+                        type="submit"
+                        disabled={chatSending || (!chatInput.trim() && !chatImage)}
+                        className="bg-white text-black px-6 py-2 rounded-lg text-sm font-bold uppercase tracking-wider disabled:opacity-50 transition-opacity"
+                      >
+                        {chatSending ? "Sending..." : "Send"}
+                      </button>
+                    </div>
                   </form>
                 </>
               ) : (

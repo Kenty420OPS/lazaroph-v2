@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, FormEvent } from "react";
+import { useState, useEffect, useRef, FormEvent, ChangeEvent } from "react";
 import { auth, db } from "@/lib/firebase";
 import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, getDoc, writeBatch, increment } from "firebase/firestore";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { compressImage } from "@/lib/client-image";
+import { CHAT_ACCEPTED_IMAGE_TYPES, CHAT_IMAGE_INPUT_MAX_BYTES } from "@/lib/chat";
+import { getUserErrorMessage } from "@/lib/user-error";
+import ChatImage from "./ChatImage";
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,12 +19,23 @@ export default function ChatWidget() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState("");
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Sync isOpen state to ref for listeners
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
+
+  // Revoke the local preview URL when it changes or the widget unmounts.
+  useEffect(() => {
+    return () => {
+      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    };
+  }, [pendingPreviewUrl]);
 
   // Check auth state
   useEffect(() => {
@@ -109,51 +124,130 @@ export default function ChatWidget() {
     }
   }, [messages, isOpen]);
 
+  const clearPendingImage = () => {
+    setPendingImage(null);
+    setPendingPreviewUrl(null);
+    setImageError("");
+  };
+
+  const handleImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Allow picking the same file again after removing it.
+    e.target.value = "";
+    if (!file) return;
+
+    setImageError("");
+
+    if (!CHAT_ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof CHAT_ACCEPTED_IMAGE_TYPES)[number])) {
+      setImageError("Only JPEG, PNG, or WebP images are allowed.");
+      return;
+    }
+    if (file.size > CHAT_IMAGE_INPUT_MAX_BYTES) {
+      setImageError("Please choose an image under 5MB.");
+      return;
+    }
+
+    setPendingImage(file);
+    setPendingPreviewUrl(URL.createObjectURL(file));
+  };
+
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !sessionId) return;
+    if (sending) return;
 
     const text = newMessage.trim();
-    setNewMessage(""); // Optimistic clear
+
+    // Text-only messages keep using the existing direct Firestore path.
+    if (!pendingImage) {
+      if (!text || !sessionId) return;
+
+      setNewMessage(""); // Optimistic clear
+      setErrorMsg("");
+
+      try {
+        const convRef = doc(db, "conversations", sessionId);
+        const messagesRef = collection(db, "conversations", sessionId, "messages");
+
+        const convSnap = await getDoc(convRef);
+        const batch = writeBatch(db);
+
+        if (!convSnap.exists()) {
+          batch.set(convRef, {
+            customerId: sessionId,
+            customerName: "Guest",
+            lastMessage: text,
+            updatedAt: serverTimestamp(),
+            unreadAdmin: 1,
+            unreadCustomer: 0
+          });
+        } else {
+          batch.update(convRef, {
+            lastMessage: text,
+            updatedAt: serverTimestamp(),
+            unreadAdmin: increment(1)
+          });
+        }
+
+        batch.set(doc(messagesRef), {
+          senderId: sessionId,
+          role: "customer",
+          text,
+          createdAt: serverTimestamp(),
+          read: false
+        });
+
+        await batch.commit(); // Atomic Write Batch
+      } catch (err) {
+        console.error("Failed to send message:", err);
+        setNewMessage(text); // restore input on failure
+        setErrorMsg("Failed to send message.");
+      }
+      return;
+    }
+
+    if (!sessionId) return;
+
+    setSending(true);
     setErrorMsg("");
+    setImageError("");
 
     try {
-      const convRef = doc(db, "conversations", sessionId);
-      const messagesRef = collection(db, "conversations", sessionId, "messages");
-      
-      const convSnap = await getDoc(convRef);
-      const batch = writeBatch(db);
-      
-      if (!convSnap.exists()) {
-        batch.set(convRef, {
-          customerId: sessionId,
-          customerName: "Guest",
-          lastMessage: text,
-          updatedAt: serverTimestamp(),
-          unreadAdmin: 1,
-          unreadCustomer: 0
-        });
-      } else {
-        batch.update(convRef, {
-          lastMessage: text,
-          updatedAt: serverTimestamp(),
-          unreadAdmin: increment(1)
-        });
+      let file: File;
+      try {
+        file = await compressImage(pendingImage);
+      } catch (err) {
+        setImageError(getUserErrorMessage(err, "Could not process that image."));
+        return;
       }
 
-      batch.set(doc(messagesRef), {
-        senderId: sessionId,
-        role: "customer",
-        text,
-        createdAt: serverTimestamp(),
-        read: false
-      });
+      const user = auth.currentUser;
+      if (!user) throw new Error("Failed to connect to chat.");
+      const token = await user.getIdToken();
 
-      await batch.commit(); // Atomic Write Batch
+      const formData = new FormData();
+      formData.append("conversationId", sessionId);
+      if (text) formData.append("text", text);
+      formData.append("file", file);
+
+      const response = await fetch("/api/chat/send", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          data && typeof data.error === "string" ? data.error : "Failed to send image."
+        );
+      }
+
+      setNewMessage("");
+      clearPendingImage();
     } catch (err) {
-      console.error("Failed to send message:", err);
-      setNewMessage(text); // restore input on failure
-      setErrorMsg("Failed to send message.");
+      console.error("Failed to send image:", err);
+      setImageError(getUserErrorMessage(err, "Failed to send image."));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -185,7 +279,14 @@ export default function ChatWidget() {
                     className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${msg.role === "customer" ? "bg-white text-black rounded-br-sm font-medium" : "bg-neutral-900 border border-neutral-800 text-white rounded-bl-sm"}`}
                     style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
                   >
-                    {msg.text}
+                    {msg.imagePath ? (
+                      <div className="space-y-2">
+                        <ChatImage path={msg.imagePath} />
+                        {msg.text && <div>{msg.text}</div>}
+                      </div>
+                    ) : (
+                      msg.text
+                    )}
                   </div>
                 </div>
               ))
@@ -195,7 +296,45 @@ export default function ChatWidget() {
 
           <form onSubmit={handleSend} className="p-3 bg-neutral-950 border-t border-neutral-800 flex flex-col gap-2">
             {errorMsg && <div className="text-red-500 text-[10px] px-1 font-bold">{errorMsg}</div>}
+            {imageError && <div className="text-red-500 text-[10px] px-1 font-bold">{imageError}</div>}
+            {pendingPreviewUrl && (
+              <div className="flex items-center gap-2 bg-black border border-neutral-800 rounded-lg p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={pendingPreviewUrl}
+                  alt="Selected attachment"
+                  className="h-14 w-14 rounded object-cover"
+                />
+                <span className="min-w-0 flex-1 truncate text-[10px] text-neutral-400">
+                  {pendingImage?.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={clearPendingImage}
+                  disabled={sending}
+                  className="shrink-0 rounded px-2 py-1 text-xs text-neutral-400 transition-colors hover:text-white disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
             <div className="flex gap-2">
+              <label
+                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white ${sending ? "pointer-events-none opacity-50" : ""}`}
+                title="Attach an image"
+                aria-label="Attach an image"
+              >
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImageSelect}
+                  disabled={sending}
+                  className="hidden"
+                />
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+              </label>
               <input 
                 type="text" 
                 value={newMessage}
@@ -205,10 +344,10 @@ export default function ChatWidget() {
               />
               <button 
                 type="submit" 
-                disabled={!newMessage.trim() || !sessionId}
+                disabled={sending || (!newMessage.trim() && !pendingImage) || !sessionId}
                 className="bg-white text-black px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider disabled:opacity-50 transition-opacity"
               >
-                Send
+                {sending ? "Sending..." : "Send"}
               </button>
             </div>
           </form>

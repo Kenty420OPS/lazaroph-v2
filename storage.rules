@@ -17,5 +17,11 @@ service firebase.storage {
       allow read: if true;
       allow write: if false;
     }
+    // Chat images are private. The browser never reads or writes Storage
+    // directly; /api/chat/image and /api/chat/send use the Admin SDK, which
+    // bypasses these rules and enforces conversation ownership itself.
+    match /chat/{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

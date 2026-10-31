@@ -48,3 +48,35 @@ Ensure your Vercel project has the following standard Firebase config vars:
 And for the API routes (`lib/firebase-admin.ts`) and the `scripts/set-admin-claim.js` script, you must have the Admin SDK vars:
 - `FIREBASE_CLIENT_EMAIL`
 - `FIREBASE_PRIVATE_KEY` (ensure `\n` characters are properly preserved in Vercel settings)
+
+## 5. Image Messages (JPEG / PNG / WebP)
+
+Chat supports one image per message, with or without text. Text-only messages still use the existing direct Firestore client path. Image messages go through the server because they need validation and private storage:
+
+1. The browser compresses the picked file with `lib/client-image.ts` `compressImage` (JPEG/PNG/WebP input, 1 MB output cap) after a 5 MB input pre-check. Both the customer widget and the admin Chats tab show a preview with a Remove button before sending.
+2. `POST /api/chat/send` verifies the Firebase ID token and checks ownership:
+   - no valid token -> **401**
+   - a customer targeting a conversation other than their own uid -> **403**
+   - an admin may target any existing conversation.
+3. The server re-validates the file with `lib/image-validation.ts` (magic bytes only, JPEG/PNG/WebP, 1 MB max), saves it with the Admin SDK under `chat/{conversationId}/{uuid}.{ext}`, then writes the message and updates the conversation in one Firestore transaction. If the Firestore write fails, the uploaded file is deleted.
+4. `lastMessage` becomes the text when text is present, otherwise `"Photo"`. `unreadAdmin` / `unreadCustomer` keep their existing behaviour.
+5. Basic abuse protection: at most **5 image uploads per conversation per minute** through the existing in-memory `lib/rate-limit.ts`. Like the other limiters it is per serverless instance, not a global cap.
+6. `GET /api/chat/image?path=chat/<conversationId>/<file>` streams the image back only to that conversation's customer or an admin (401 without a valid token, 403 for another customer's conversation). `components/ChatImage.tsx` fetches it with the ID token into a blob URL, shows a loading state and an "Image unavailable" fallback, and opens the full size in a new tab.
+
+### Storage rules (required deploy)
+
+`storage.rules` explicitly denies all client reads and writes under `chat/`. Only the API (Admin SDK) can touch chat images:
+
+```
+match /chat/{allPaths=**} {
+  allow read, write: if false;
+}
+```
+
+Deploy it after merging:
+
+```bash
+firebase deploy --only storage
+```
+
+No Firestore rules deploy is needed for image messages: they are written by the API (Admin SDK bypasses rules). The existing conversation/message rules continue to protect the text-only direct writes.
