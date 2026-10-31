@@ -11,7 +11,7 @@ Because claims are not automatically set on signup, you must follow this rollout
    ```bash
    node scripts/set-admin-claim.js admin@lazarophstore.com
    ```
-2. **Log in at `/admin`**: When the admin logs into the dashboard (`/admin`), the UI now forces a token refresh via `currentUser.getIdTokenResult(true)` and strictly verifies that `claims.role === 'admin'`. This proves the claim is in the token.
+2. **Log in at `/portal/lzph/2016`**: When the admin logs into the dashboard (`/portal/lzph/2016`), the UI now forces a token refresh via `currentUser.getIdTokenResult(true)` and strictly verifies that `claims.role === 'admin'`. This proves the claim is in the token.
 3. **Deploy Rules**: Deploy the strict custom-claim-only security rules.
    ```bash
    firebase deploy --only firestore:rules
@@ -33,7 +33,7 @@ To completely revoke an admin's access, you must:
 - **Clearing Site Data**: Anonymous accounts are bound to the browser's IndexedDB. If a customer clears their browser site data or uses an Incognito window, they will generate a new Anonymous UID.
 
 ## 3. Pre-launch Requirements: Firebase App Check
-**NOTE:** Enforcing Firebase App Check in the Firebase Console without first initializing the App Check client SDK in your React app **will break the entire site, including `/admin` reads/writes**. 
+**NOTE:** Enforcing Firebase App Check in the Firebase Console without first initializing the App Check client SDK in your React app **will break the entire site, including `/portal/lzph/2016` reads/writes**. 
 Before enforcing App Check, you must add the App Check client wrapper (using reCAPTCHA Enterprise) to your `app/layout.tsx` or Firebase initialization file.
 
 ## 4. Vercel Environment Variables

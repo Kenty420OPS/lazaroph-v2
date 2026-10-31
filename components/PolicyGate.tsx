@@ -26,7 +26,7 @@ export default function PolicyGate() {
   const [showDeclineMessage, setShowDeclineMessage] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const isExempt = pathname.startsWith("/admin") || EXEMPT_PATHS.includes(pathname);
+  const isExempt = pathname.startsWith("/portal/lzph/2016") || EXEMPT_PATHS.includes(pathname);
 
   // Read consent after mount only: the server render and the first client paint
   // both return nothing, so there is no hydration mismatch.
