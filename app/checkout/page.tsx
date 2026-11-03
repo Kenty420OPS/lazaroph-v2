@@ -371,7 +371,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col selection:bg-[#0A0A0A] selection:text-white">
       <SiteHeader />
 
-      <div className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-32 sm:pb-16 w-full">
         <Link href="/cart" className="inline-flex items-center min-h-11 text-[#6B6B6B] hover:text-[#0A0A0A] text-sm mb-6 transition-colors">
           &larr; Back to Cart
         </Link>
@@ -437,7 +437,7 @@ export default function CheckoutPage() {
           <div className={`space-y-4 ${step === 2 ? "hidden" : ""}`}>
             <h2 className="text-xl font-bold border-b border-[#0A0A0A]/10 pb-2">Shipping Information</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                   Full Name *
                 </label>
@@ -449,7 +449,7 @@ export default function CheckoutPage() {
                   className="w-full min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg p-3 text-sm text-[#0A0A0A] placeholder-[#6B6B6B] focus:border-[#0A0A0A] focus:outline-none"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                   Contact Number *
                 </label>
@@ -602,7 +602,7 @@ export default function CheckoutPage() {
                 <p className="text-sm text-[#0A0A0A] font-bold">Payment methods are unavailable. Please contact the store.</p>
               ) : (
                 <>
-                  <div className="w-full max-w-xs mx-auto aspect-square">
+                  <div className="w-full max-w-[260px] sm:max-w-xs mx-auto aspect-square">
                     {selectedMethod.qrUrl ? (
                       <img
                         src={selectedMethod.qrUrl}
@@ -668,7 +668,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <div>
+            <div className="overflow-hidden min-w-0 max-w-full">
               <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
                 Proof of Payment (Screenshot) *
               </label>
@@ -677,7 +677,7 @@ export default function CheckoutPage() {
                 type="file"
                 accept="image/*"
                 onChange={(e) => setPaymentImage(e.target.files?.[0] || null)}
-                className="w-full min-w-0 max-w-full min-h-11 bg-white border border-dashed border-[#0A0A0A]/20 rounded-lg p-2 text-sm text-[#0A0A0A] focus:border-[#0A0A0A] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0A0A0A] file:text-white hover:file:bg-[#0A0A0A]/90"
+                className="w-full min-w-0 max-w-full min-h-11 bg-white border border-dashed border-[#0A0A0A]/20 rounded-lg p-2 text-sm text-[#0A0A0A] focus:border-[#0A0A0A] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0A0A0A] file:text-white hover:file:bg-[#0A0A0A]/90 truncate"
               />
             </div>
 
@@ -699,21 +699,21 @@ export default function CheckoutPage() {
           )}
 
           {step === 2 && (
-            <div className="flex gap-4 mt-8">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-8">
               <button
                 type="button"
                 onClick={() => {
                   setStep(1);
                   window.scrollTo({ top: 0 });
                 }}
-                className="flex-1 min-w-0 min-h-11 py-4 rounded-lg bg-white text-[#0A0A0A] border border-[#0A0A0A] font-black hover:bg-[#0A0A0A]/5 transition-colors uppercase tracking-widest"
+                className="w-full sm:flex-1 min-w-0 min-h-11 py-4 rounded-lg bg-white text-[#0A0A0A] border border-[#0A0A0A] font-black hover:bg-[#0A0A0A]/5 transition-colors uppercase tracking-widest text-center"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={loading || methodsLoading || methodsUnavailable || !selectedMethod}
-                className="flex-1 min-w-0 min-h-11 py-4 rounded-lg bg-[#0A0A0A] text-white font-black hover:bg-[#0A0A0A]/90 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:flex-1 min-w-0 min-h-11 py-4 rounded-lg bg-[#0A0A0A] text-white font-black hover:bg-[#0A0A0A]/90 transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed text-center"
               >
                 {loading ? "Processing Order..." : "Submit Order"}
               </button>

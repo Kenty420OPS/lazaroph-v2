@@ -230,10 +230,10 @@ function ShopPageContent() {
                 placeholder="Search catalog..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-[#0A0A0A]/20 rounded-lg pl-9 pr-3 py-1.5 text-xs text-[#0A0A0A] placeholder-[#6B6B6B] focus:outline-none focus:border-[#0A0A0A] focus:ring-1 focus:ring-[#0A0A0A]"
+                className="w-full min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg pl-9 pr-3 py-2 text-xs sm:text-sm text-[#0A0A0A] placeholder-[#6B6B6B] focus:outline-none focus:border-[#0A0A0A] focus:ring-1 focus:ring-[#0A0A0A]"
               />
               <svg
-                className="w-4 h-4 text-[#6B6B6B] absolute left-3 top-2.5"
+                className="w-4 h-4 text-[#6B6B6B] absolute left-3 top-3.5 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -245,7 +245,7 @@ function ShopPageContent() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-white border border-[#0A0A0A]/20 rounded-lg px-3 py-1.5 text-xs text-[#0A0A0A] focus:outline-none focus:border-[#0A0A0A]"
+              className="min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg px-3 py-2 text-xs sm:text-sm text-[#0A0A0A] focus:outline-none focus:border-[#0A0A0A]"
             >
               <option value="default">Sort by: Default</option>
               <option value="price-low">Price: Low to High</option>

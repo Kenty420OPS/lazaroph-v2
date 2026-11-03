@@ -63,7 +63,7 @@ export default function AuthMenu() {
         type="button"
         onClick={handleSignOut}
         disabled={signingOut}
-        className="inline-flex items-center min-h-11 text-xs font-bold px-3.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+        className="hidden sm:inline-flex items-center min-h-11 text-xs font-bold px-3.5 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {signingOut ? "Signing out..." : "Sign out"}
       </button>

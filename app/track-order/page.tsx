@@ -90,7 +90,7 @@ function TrackOrderContent() {
           </form>
         ) : (
           <div className="space-y-8">
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button onClick={() => setOrderData(null)} className="text-sm font-bold bg-white px-4 py-2 min-h-11 rounded border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors">
                 Track Another Order
               </button>

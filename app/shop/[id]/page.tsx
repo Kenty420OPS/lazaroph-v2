@@ -268,7 +268,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                             type="button"
                             disabled={outOfStock}
                             onClick={() => setSelectedSize(size.label)}
-                            className={`min-h-11 text-sm font-semibold text-center rounded-lg border transition-colors ${
+                            className={`min-h-11 flex items-center justify-center text-sm font-semibold text-center rounded-lg border transition-colors ${
                               selected
                                 ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
                                 : outOfStock

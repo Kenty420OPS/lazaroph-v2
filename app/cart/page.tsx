@@ -31,7 +31,7 @@ export default function CartPage() {
     <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col selection:bg-[#0A0A0A] selection:text-white">
       <SiteHeader />
 
-      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full bg-white text-[#0A0A0A]">
+      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-32 sm:pb-16 w-full bg-white text-[#0A0A0A]">
         <h1 className="text-3xl font-black tracking-tight mb-8">YOUR CART</h1>
 
         {cartCount === 0 ? (
@@ -52,42 +52,76 @@ export default function CartPage() {
                 const size = item.size ?? "";
                 const key = `${item.id}::${size}`;
                 return (
-                  <div key={key} className="flex gap-4 p-4 bg-white rounded-xl border border-[#0A0A0A]/10 items-center">
-                    <div className="w-24 h-24 bg-[#0A0A0A]/5 rounded-lg overflow-hidden flex-shrink-0">
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[#6B6B6B]">
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                  <div key={key} className="p-4 bg-white rounded-xl border border-[#0A0A0A]/10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="flex gap-3 sm:gap-4 items-start sm:items-center flex-1 min-w-0">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-[#0A0A0A]/5 rounded-lg overflow-hidden flex-shrink-0">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[#6B6B6B]">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-sm sm:text-base text-[#0A0A0A] line-clamp-2 sm:truncate">{item.name}</h3>
+                            {size ? (
+                              <p className="text-[#6B6B6B] text-xs sm:text-sm mt-0.5 sm:mt-1">Size: {size}</p>
+                            ) : null}
+                            <p className="text-[#6B6B6B] text-xs sm:text-sm mt-0.5 sm:mt-1">₱{item.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
+                          </div>
+                          {/* Mobile price on top right */}
+                          <div className="text-right sm:hidden shrink-0">
+                            <p className="font-bold text-base text-[#0A0A0A]">
+                              ₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[#0A0A0A] truncate">{item.name}</h3>
-                      {size ? (
-                        <p className="text-[#6B6B6B] text-xs sm:text-sm mt-1">Size: {size}</p>
-                      ) : null}
-                      <p className="text-[#6B6B6B] text-sm mt-1">₱{item.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
-                      <div className="flex items-center gap-4 mt-3">
-                        <div className="flex items-center bg-white border border-[#0A0A0A]/20 rounded-lg overflow-hidden min-h-11">
-                          <button onClick={() => updateQuantity(item.id, item.quantity - 1, size)} className="px-3 text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors min-h-11 min-w-11 flex items-center justify-center">
-                            -
-                          </button>
-                          <span className="px-4 text-sm font-medium text-[#0A0A0A] border-x border-[#0A0A0A]/20 min-h-11 flex items-center justify-center bg-white">
-                            {item.quantity}
-                          </span>
-                          <button onClick={() => updateQuantity(item.id, item.quantity + 1, size)} className="px-3 text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors min-h-11 min-w-11 flex items-center justify-center">
-                            +
+
+                        {/* Desktop controls */}
+                        <div className="hidden sm:flex items-center gap-4 mt-3">
+                          <div className="flex items-center bg-white border border-[#0A0A0A]/20 rounded-lg overflow-hidden min-h-11">
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1, size)} className="px-3 text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors min-h-11 min-w-11 flex items-center justify-center">
+                              -
+                            </button>
+                            <span className="px-4 text-sm font-medium text-[#0A0A0A] border-x border-[#0A0A0A]/20 min-h-11 flex items-center justify-center bg-white">
+                              {item.quantity}
+                            </span>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1, size)} className="px-3 text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors min-h-11 min-w-11 flex items-center justify-center">
+                              +
+                            </button>
+                          </div>
+                          <button onClick={() => removeFromCart(item.id, size)} className="inline-flex items-center justify-center min-h-11 min-w-11 px-3 text-xs font-semibold text-[#0A0A0A] border border-[#0A0A0A]/20 rounded-lg hover:bg-[#0A0A0A]/5 transition-colors">
+                            Remove
                           </button>
                         </div>
-                        <button onClick={() => removeFromCart(item.id, size)} className="inline-flex items-center justify-center min-h-11 min-w-11 px-3 text-xs font-semibold text-[#0A0A0A] border border-[#0A0A0A]/20 rounded-lg hover:bg-[#0A0A0A]/5 transition-colors">
-                          Remove
-                        </button>
                       </div>
                     </div>
-                    <div className="text-right">
+
+                    {/* Mobile controls on full-width bottom row */}
+                    <div className="flex sm:hidden items-center justify-between gap-3 pt-2 border-t border-[#0A0A0A]/5">
+                      <div className="flex items-center bg-white border border-[#0A0A0A]/20 rounded-lg overflow-hidden min-h-11">
+                        <button onClick={() => updateQuantity(item.id, item.quantity - 1, size)} className="px-3 text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors min-h-11 min-w-11 flex items-center justify-center text-base font-bold">
+                          -
+                        </button>
+                        <span className="w-12 text-center text-sm font-medium text-[#0A0A0A] border-x border-[#0A0A0A]/20 min-h-11 flex items-center justify-center bg-white">
+                          {item.quantity}
+                        </span>
+                        <button onClick={() => updateQuantity(item.id, item.quantity + 1, size)} className="px-3 text-[#0A0A0A] hover:bg-[#0A0A0A]/5 transition-colors min-h-11 min-w-11 flex items-center justify-center text-base font-bold">
+                          +
+                        </button>
+                      </div>
+                      <button onClick={() => removeFromCart(item.id, size)} className="inline-flex items-center justify-center min-h-11 px-4 text-xs font-semibold text-[#0A0A0A] border border-[#0A0A0A]/20 rounded-lg hover:bg-[#0A0A0A]/5 transition-colors">
+                        Remove
+                      </button>
+                    </div>
+
+                    {/* Desktop price on right */}
+                    <div className="hidden sm:block text-right shrink-0">
                       <p className="font-bold text-lg text-[#0A0A0A]">₱{(item.price * item.quantity).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
                     </div>
                   </div>

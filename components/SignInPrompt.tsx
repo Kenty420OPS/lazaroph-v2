@@ -170,7 +170,7 @@ export default function SignInPrompt() {
   const encodedNext = encodeURIComponent(nextPath);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#0A0A0A]/40 px-4 pb-4 sm:items-center sm:pb-0">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-[#0A0A0A]/40 px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:items-center sm:pb-0">
       <div
         ref={panelRef}
         role="dialog"
@@ -179,7 +179,7 @@ export default function SignInPrompt() {
         aria-describedby="signin-prompt-text"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto border border-[#0A0A0A]/10 bg-white p-5 text-[#0A0A0A] shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#0A0A0A] sm:p-6"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto border border-[#0A0A0A]/10 bg-white p-5 text-[#0A0A0A] shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#0A0A0A] sm:p-6"
       >
         <h2 id="signin-prompt-title" className="text-lg font-black tracking-tight">
           Sign in to save your cart
