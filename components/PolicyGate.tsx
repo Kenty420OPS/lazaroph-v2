@@ -131,7 +131,7 @@ export default function PolicyGate() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
       <div
         ref={panelRef}
         role="dialog"
@@ -139,7 +139,7 @@ export default function PolicyGate() {
         aria-labelledby="policy-gate-title"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className="flex max-h-[90vh] w-[calc(100%-2rem)] max-w-lg flex-col overflow-hidden border border-[#0A0A0A]/10 bg-white text-[#0A0A0A] shadow-2xl outline-none"
+        className="flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden border border-[#0A0A0A]/10 bg-white text-[#0A0A0A] shadow-2xl outline-none"
       >
         <div className="flex shrink-0 items-center justify-between gap-4 bg-[#0A0A0A] px-4 py-3 sm:px-6">
           <h2
