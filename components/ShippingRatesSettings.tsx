@@ -188,7 +188,7 @@ export default function ShippingRatesSettings() {
               <button
                 type="button"
                 onClick={() => setError("")}
-                className="shrink-0 underline underline-offset-2"
+                className="shrink-0 inline-flex items-center justify-center min-h-11 min-w-11 px-2 underline underline-offset-2"
               >
                 Dismiss
               </button>
