@@ -149,12 +149,12 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Gallery */}
             <div>
-              <div className="relative w-full h-80 sm:h-96 bg-white rounded-xl border border-[#0A0A0A]/10 overflow-hidden flex items-center justify-center">
+              <div className="relative w-full h-80 sm:h-96 lg:h-auto lg:aspect-square bg-white rounded-xl border border-[#0A0A0A]/10 overflow-hidden flex items-center justify-center">
                 {mainImage ? (
                   <img
                     src={mainImage}
                     alt={product.name || "Product"}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover lg:object-contain"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";
                     }}
