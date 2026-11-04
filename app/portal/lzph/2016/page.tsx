@@ -1737,6 +1737,16 @@ export default function AdminPage() {
                             <p className="text-neutral-400 text-sm mt-1">Rider fee acknowledged: <span className="text-white">{selectedOrder.shipping?.metroManilaAcknowledged ? "Yes" : "No"}</span></p>
                           </>
                         )}
+                        {selectedOrder.shipping?.courier !== "Pickup" && selectedOrder.shipping?.landmark ? (
+                          <p className="text-neutral-400 text-sm mt-1 break-words">
+                            Landmark: <span className="text-white">{selectedOrder.shipping?.landmark}</span>
+                          </p>
+                        ) : null}
+                        {selectedOrder.shipping?.courier !== "Pickup" && selectedOrder.shipping?.notes ? (
+                          <p className="text-neutral-400 text-sm mt-1 break-words whitespace-pre-wrap">
+                            Notes: <span className="text-white">{selectedOrder.shipping?.notes}</span>
+                          </p>
+                        ) : null}
                       </div>
                       <div className="text-left md:text-right">
                         <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2">Order Info</h3>

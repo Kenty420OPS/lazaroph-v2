@@ -41,7 +41,7 @@ const TRUST_POINTS: { title: string; body: string; icon: ReactNode }[] = [
   },
   {
     title: "Nationwide Delivery",
-    body: "LBC across the Philippines, Lalamove in Metro Manila, or store pickup.",
+    body: "LBC across the Philippines, Lalamove in select Metro Manila, Rizal, Bulacan and Cavite cities, or store pickup.",
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path

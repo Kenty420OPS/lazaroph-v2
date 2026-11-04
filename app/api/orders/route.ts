@@ -1,14 +1,37 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { calculateShippingFee, VALID_COURIERS, VALID_REGIONS, isMetroManila } from "@/lib/shipping";
+import { calculateShippingFee, VALID_COURIERS, VALID_REGIONS, findLalamoveCity } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice, hasSizeSystem, getTotalStock } from "@/lib/product";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { POLICY_VERSION } from "@/lib/store-info";
 
 const MAX_QTY_PER_ITEM = 99;
+const MAX_LANDMARK_LENGTH = 120;
+const MAX_NOTES_LENGTH = 300;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Strip C0/C1 control characters. Newlines and tabs are handled separately so
+// notes can keep line breaks while a landmark stays a single line.
+const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
+
+function sanitizeLandmark(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(CONTROL_CHARS, " ")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitizeNotes(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/\r\n?/g, "\n")
+    .replace(CONTROL_CHARS, "")
+    .trim();
+}
 
 const orderLimiter = createRateLimiter({ maxRequests: 10, windowMs: 10 * 60 * 1000 });
 
@@ -67,6 +90,8 @@ export async function POST(request: Request) {
     const nameRaw = (formData.get("name") as string | null) ?? "";
     const contactRaw = (formData.get("contact") as string | null) ?? "";
     const addressRaw = (formData.get("address") as string | null) ?? "";
+    const landmarkRaw = formData.get("landmark");
+    const notesRaw = formData.get("notes");
     const courier = (formData.get("courier") as string | null) ?? "";
     const region = (formData.get("region") as string | null) ?? "";
     const city = formData.get("city") as string | null;
@@ -81,6 +106,8 @@ export async function POST(request: Request) {
     const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
     const contact = typeof contactRaw === "string" ? contactRaw.trim() : "";
     const address = typeof addressRaw === "string" ? addressRaw.trim() : "";
+    const landmark = sanitizeLandmark(landmarkRaw);
+    const notes = sanitizeNotes(notesRaw);
     const referenceNumber = typeof referenceNumberRaw === "string" ? referenceNumberRaw.trim() : "";
     const policyVersion = typeof policyVersionRaw === "string" ? policyVersionRaw.trim() : "";
 
@@ -160,6 +187,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Invalid courier" }, { status: 400 });
     }
 
+    if (courier !== "Pickup") {
+      if (!landmark || landmark.length > MAX_LANDMARK_LENGTH) {
+        return NextResponse.json(
+          { success: false, error: "Landmark must be between 1 and 120 characters" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (notes.length > MAX_NOTES_LENGTH) {
+      return NextResponse.json(
+        { success: false, error: "Notes must be at most 300 characters" },
+        { status: 400 }
+      );
+    }
+
     if (courier === "LBC" && !VALID_REGIONS.includes(region)) {
       return NextResponse.json({ success: false, error: "Invalid or missing region for LBC" }, { status: 400 });
     }
@@ -171,11 +214,12 @@ export async function POST(request: Request) {
       );
     }
 
+    let lalamoveCity: { city: string; province: string } | null = null;
     if (courier === "Lalamove") {
-      const trimmedCity = typeof city === "string" ? city.trim() : "";
-      if (metroManilaAcknowledged !== "true" || !trimmedCity || !isMetroManila(trimmedCity)) {
+      lalamoveCity = typeof city === "string" ? findLalamoveCity(city) : null;
+      if (metroManilaAcknowledged !== "true" || !lalamoveCity) {
         return NextResponse.json(
-          { success: false, error: "Lalamove delivery is available within Metro Manila only." },
+          { success: false, error: "Lalamove delivery is not available for that city. Please choose LBC." },
           { status: 400 }
         );
       }
@@ -303,6 +347,8 @@ export async function POST(request: Request) {
       shipping: {
         courier,
         shippingFee,
+        landmark: courier === "Pickup" ? "" : landmark,
+        notes: courier === "Pickup" ? "" : notes,
       },
       payment: {
         method: paymentMethodDoc.name,
@@ -329,8 +375,9 @@ export async function POST(request: Request) {
       baseOrderPayload.shipping.region = region;
     }
 
-    if (courier === "Lalamove") {
-      baseOrderPayload.shipping.city = typeof city === "string" ? city.trim() : "";
+    if (courier === "Lalamove" && lalamoveCity) {
+      baseOrderPayload.shipping.city = lalamoveCity.city;
+      baseOrderPayload.shipping.province = lalamoveCity.province;
       baseOrderPayload.shipping.metroManilaAcknowledged = true;
     }
 

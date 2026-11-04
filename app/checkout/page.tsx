@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { calculateShippingFee, getLbcRate, SHIPPING_METHODS, METRO_MANILA_CITIES, type Courier, type Region } from "@/lib/shipping";
+import { calculateShippingFee, getLbcRate, SHIPPING_METHODS, LALAMOVE_CITY_GROUPS, type Courier, type Region } from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
@@ -31,6 +31,8 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [notes, setNotes] = useState("");
   const [courier, setCourier] = useState<Courier | "">("");
   const [region, setRegion] = useState<Region | "">("");
   const [deliveryCity, setDeliveryCity] = useState("");
@@ -167,6 +169,10 @@ export default function CheckoutPage() {
         setError("Please fill in all required fields.");
         return;
       }
+      if (courier !== "Pickup" && !landmark.trim()) {
+        setError("Please provide a landmark for your delivery address.");
+        return;
+      }
       if (courier === "LBC") {
         if (!region) {
           setError("Please select a region for LBC.");
@@ -251,6 +257,8 @@ export default function CheckoutPage() {
       formData.append("contact", contact);
       formData.append("address", courier === "Pickup" ? "" : address);
       formData.append("courier", courier);
+      formData.append("landmark", courier === "Pickup" ? "" : landmark);
+      formData.append("notes", courier === "Pickup" ? "" : notes);
       if (courier === "LBC") {
         formData.append("region", region);
         formData.append("shippingFee", shippingFee.toString());
@@ -336,6 +344,20 @@ export default function CheckoutPage() {
         } catch (err) {
           console.error("Failed to save recent order", err);
         }
+      }
+
+      try {
+        sessionStorage.setItem(
+          "lazaroph_last_order_delivery",
+          JSON.stringify({
+            courier,
+            city: courier === "Lalamove" ? deliveryCity : "",
+            landmark: courier === "Pickup" ? "" : landmark,
+            notes: courier === "Pickup" ? "" : notes,
+          })
+        );
+      } catch (storageErr) {
+        console.error("Failed to save delivery details", storageErr);
       }
 
       clearCart();
@@ -506,6 +528,38 @@ export default function CheckoutPage() {
                 </select>
               </div>
             </div>
+            {(courier === "LBC" || courier === "Lalamove") && (
+              <div className="space-y-4">
+                <div className="min-w-0">
+                  <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
+                    Landmark *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    maxLength={120}
+                    className="w-full min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg p-3 text-sm text-[#0A0A0A] placeholder-[#6B6B6B] focus:border-[#0A0A0A] focus:outline-none"
+                  />
+                  <p className="text-xs text-[#6B6B6B] italic mt-1">
+                    A nearby recognizable place (e.g. beside a school, church or 7-Eleven).
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
+                    Notes for the rider/courier (optional)
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    maxLength={300}
+                    rows={3}
+                    className="w-full min-h-11 bg-white border border-[#0A0A0A]/20 rounded-lg p-3 text-sm text-[#0A0A0A] placeholder-[#6B6B6B] focus:border-[#0A0A0A] focus:outline-none"
+                  ></textarea>
+                </div>
+              </div>
+            )}
             {courier === "LBC" && (
               <div className="space-y-4">
                 <div>
@@ -548,7 +602,7 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-1">
-                    Delivery City (Metro Manila only) *
+                    Delivery City *
                   </label>
                   <select
                     required
@@ -559,13 +613,19 @@ export default function CheckoutPage() {
                     <option value="" disabled>
                       Select city
                     </option>
-                    {METRO_MANILA_CITIES.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
+                    {LALAMOVE_CITY_GROUPS.map((group) => (
+                      <optgroup key={group.province} label={group.province}>
+                        {group.cities.map((city) => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
-                  <p className="text-xs text-[#6B6B6B] italic mt-1">Outside Metro Manila? Choose LBC.</p>
+                  <p className="text-xs text-[#6B6B6B] italic mt-1">
+                    Lalamove covers the listed cities. If your city is not listed, choose LBC.
+                  </p>
                 </div>
                 <label className="flex items-start gap-3 min-h-11 text-sm text-[#0A0A0A] cursor-pointer">
                   <input
@@ -576,8 +636,8 @@ export default function CheckoutPage() {
                     className="mt-1 w-5 h-5 shrink-0 accent-[#0A0A0A]"
                   />
                   <span>
-                    I understand Lalamove delivery is within Metro Manila only, and I will pay the rider&apos;s delivery
-                    fee directly.
+                    I understand Lalamove delivery is available only in the listed cities, and I will pay the
+                    rider&apos;s delivery fee directly.
                   </span>
                 </label>
               </div>

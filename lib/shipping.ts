@@ -59,7 +59,7 @@ export const SHIPPING_METHODS: Record<Courier, ShippingMethodConfig> = {
   },
   Lalamove: {
     label: "Lalamove",
-    description: "Metro Manila same-day delivery",
+    description: "Same-day delivery in select cities",
     requiresAddress: true,
     feeMode: "paid_to_rider",
     note: "Delivery fee is paid directly to the rider and is not part of the online total.",
@@ -73,25 +73,68 @@ export const SHIPPING_METHODS: Record<Courier, ShippingMethodConfig> = {
   },
 };
 
-export const METRO_MANILA_CITIES = [
-  "Caloocan",
-  "Las Piñas",
-  "Makati",
-  "Malabon",
-  "Mandaluyong",
-  "Manila",
-  "Marikina",
-  "Muntinlupa",
-  "Navotas",
-  "Parañaque",
-  "Pasay",
-  "Pasig",
-  "Pateros",
-  "Quezon City",
-  "San Juan",
-  "Taguig",
-  "Valenzuela",
-] as const;
+export interface LalamoveCityGroup {
+  province: string;
+  cities: readonly string[];
+}
+
+// Single source of truth for Lalamove coverage. Grouped by province for the
+// checkout dropdown; the server matches against this same list.
+export const LALAMOVE_CITY_GROUPS: readonly LalamoveCityGroup[] = [
+  {
+    province: "Metro Manila",
+    cities: [
+      "Caloocan",
+      "Las Piñas",
+      "Makati",
+      "Malabon",
+      "Mandaluyong",
+      "Manila",
+      "Marikina",
+      "Muntinlupa",
+      "Navotas",
+      "Parañaque",
+      "Pasay",
+      "Pasig",
+      "Pateros",
+      "Quezon City",
+      "San Juan",
+      "Taguig",
+      "Valenzuela",
+    ],
+  },
+  {
+    province: "Rizal",
+    cities: [
+      "Taytay",
+      "Cainta",
+      "Binangonan",
+      "Antipolo",
+      "San Mateo",
+      "Rodriguez (Montalban)",
+    ],
+  },
+  {
+    province: "Bulacan",
+    cities: ["San Jose del Monte"],
+  },
+  {
+    province: "Cavite",
+    cities: [
+      "Imus",
+      "Trece Martires",
+      "Cavite City",
+      "Dasmariñas",
+      "General Trias",
+    ],
+  },
+];
+
+// Flat lists kept for callers that only need the names.
+export const LALAMOVE_CITIES: readonly string[] = LALAMOVE_CITY_GROUPS.flatMap(
+  (group) => group.cities
+);
+export const METRO_MANILA_CITIES: readonly string[] = LALAMOVE_CITY_GROUPS[0].cities;
 
 function normalizePlace(value: string): string {
   return value
@@ -103,23 +146,54 @@ function normalizePlace(value: string): string {
     .trim();
 }
 
-const METRO_MANILA_ALIASES: Set<string> = (() => {
-  const set = new Set<string>();
-  for (const city of METRO_MANILA_CITIES) {
-    const base = normalizePlace(city).replace(/ city$/, "");
-    if (base === "quezon") {
-      // "Quezon" alone is also a province, so only accept "Quezon City".
-      set.add("quezon city");
-      continue;
+// Explicit aliases where the generated ones would be ambiguous (a province
+// name or a former name).
+const CITY_ALIAS_OVERRIDES: Record<string, readonly string[]> = {
+  "Quezon City": ["Quezon City"],
+  "Cavite City": ["Cavite City"],
+  "Rodriguez (Montalban)": ["Rodriguez (Montalban)", "Rodriguez", "Montalban"],
+};
+
+function getCityAliases(city: string): readonly string[] {
+  const override = CITY_ALIAS_OVERRIDES[city];
+  if (override) return override;
+  const base = city.replace(/ city$/i, "");
+  return [city, `${base} City`, `City of ${base}`];
+}
+
+export interface LalamoveCityMatch {
+  city: string;
+  province: string;
+}
+
+const LALAMOVE_CITY_LOOKUP: Map<string, LalamoveCityMatch> = (() => {
+  const lookup = new Map<string, LalamoveCityMatch>();
+  for (const group of LALAMOVE_CITY_GROUPS) {
+    for (const city of group.cities) {
+      const match: LalamoveCityMatch = { city, province: group.province };
+      for (const alias of getCityAliases(city)) {
+        const key = normalizePlace(alias);
+        if (key) lookup.set(key, match);
+      }
     }
-    set.add(base);
-    set.add(`${base} city`);
-    set.add(`city of ${base}`);
   }
-  return set;
+  return lookup;
 })();
 
+// Returns the canonical city (with its original spelling, e.g. "Dasmariñas")
+// and province, or null when the input is not in the coverage list.
+export function findLalamoveCity(input: string): LalamoveCityMatch | null {
+  if (typeof input !== "string") return null;
+  const key = normalizePlace(input);
+  if (!key) return null;
+  return LALAMOVE_CITY_LOOKUP.get(key) ?? null;
+}
+
+export function isLalamoveCity(input: string): boolean {
+  return findLalamoveCity(input) !== null;
+}
+
+// Kept for older callers: true only for the Metro Manila group.
 export function isMetroManila(city: string): boolean {
-  if (typeof city !== "string") return false;
-  return METRO_MANILA_ALIASES.has(normalizePlace(city));
+  return findLalamoveCity(city)?.province === "Metro Manila";
 }

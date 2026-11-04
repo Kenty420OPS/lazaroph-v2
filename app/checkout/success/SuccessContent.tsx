@@ -1,8 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import CopyOrderId from "./CopyOrderId";
+
+const DELIVERY_STORAGE_KEY = "lazaroph_last_order_delivery";
+
+interface DeliveryDetails {
+  courier: string;
+  city: string;
+  landmark: string;
+  notes: string;
+}
 
 export default function SuccessContent() {
   const searchParams = useSearchParams();
@@ -11,6 +21,30 @@ export default function SuccessContent() {
   const courier = (searchParams.get("courier") ?? "").trim();
   const branchName = (searchParams.get("branchName") ?? "").trim().slice(0, 100);
   const isPickup = courier === "Pickup";
+  const [delivery, setDelivery] = useState<DeliveryDetails | null>(null);
+
+  // The checkout hands the delivery details over through sessionStorage so they
+  // never appear in the URL. Read once, then remove them; a refresh or another
+  // tab simply renders nothing extra.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DELIVERY_STORAGE_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(DELIVERY_STORAGE_KEY);
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      const storedCourier = typeof parsed.courier === "string" ? parsed.courier : "";
+      if (storedCourier !== "LBC" && storedCourier !== "Lalamove") return;
+      setDelivery({
+        courier: storedCourier,
+        city: typeof parsed.city === "string" ? parsed.city.slice(0, 100) : "",
+        landmark: typeof parsed.landmark === "string" ? parsed.landmark.slice(0, 120) : "",
+        notes: typeof parsed.notes === "string" ? parsed.notes.slice(0, 300) : "",
+      });
+    } catch {
+      // Storage or JSON failure: render nothing extra.
+    }
+  }, []);
 
   return (
     <div className="max-w-md w-full text-center space-y-6">
@@ -30,6 +64,31 @@ export default function SuccessContent() {
           <span className="text-xs text-[#6B6B6B]">Status:</span>
           <span>PENDING PAYMENT</span>
         </p>
+        {delivery && (
+          <div className="text-left bg-[#0A0A0A]/5 border border-[#0A0A0A]/10 rounded-lg px-4 py-3 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#6B6B6B]">
+              Delivery details
+            </p>
+            <p>
+              <span className="text-[#6B6B6B]">Courier:</span> {delivery.courier}
+            </p>
+            {delivery.city ? (
+              <p>
+                <span className="text-[#6B6B6B]">City:</span> {delivery.city}
+              </p>
+            ) : null}
+            {delivery.landmark ? (
+              <p className="break-words">
+                <span className="text-[#6B6B6B]">Landmark:</span> {delivery.landmark}
+              </p>
+            ) : null}
+            {delivery.notes ? (
+              <p className="whitespace-pre-wrap break-words">
+                <span className="text-[#6B6B6B]">Notes:</span> {delivery.notes}
+              </p>
+            ) : null}
+          </div>
+        )}
         {orderId && (
           <div className="flex flex-col gap-3">
             <CopyOrderId orderId={orderId} />

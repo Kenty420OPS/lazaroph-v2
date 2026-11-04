@@ -9,8 +9,8 @@ export const STORE_INFO = {
 
 // Single review date for every policy page, kept as an ISO date string so it
 // sorts and compares cleanly, plus a display form used by the pages.
-export const POLICY_LAST_UPDATED = "2026-11-03";
-export const POLICY_LAST_UPDATED_DISPLAY = "November 3, 2026";
+export const POLICY_LAST_UPDATED = "2026-11-04";
+export const POLICY_LAST_UPDATED_DISPLAY = "November 4, 2026";
 
 // Version stamped into the storefront policy agreement, so the gate re-opens
 // whenever the policies above get a new review date.
