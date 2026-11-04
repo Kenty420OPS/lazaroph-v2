@@ -183,6 +183,19 @@ function TrackOrderContent() {
                   ) : orderData.customer?.address ? (
                     <p><span className="text-[#6B6B6B]">Address:</span> {orderData.customer?.address}</p>
                   ) : null}
+                  {courier === "Lalamove" && orderData.shipping?.city ? (
+                    <p><span className="text-[#6B6B6B]">City:</span> {orderData.shipping?.city}</p>
+                  ) : null}
+                  {courier !== "Pickup" && orderData.shipping?.landmark ? (
+                    <p className="break-words">
+                      <span className="text-[#6B6B6B]">Landmark:</span> {orderData.shipping?.landmark}
+                    </p>
+                  ) : null}
+                  {courier !== "Pickup" && orderData.shipping?.notes ? (
+                    <p className="whitespace-pre-wrap break-words">
+                      <span className="text-[#6B6B6B]">Notes:</span> {orderData.shipping?.notes}
+                    </p>
+                  ) : null}
                   <p><span className="text-[#6B6B6B]">Courier:</span> {orderData.shipping?.courier}</p>
                   <p><span className="text-[#6B6B6B]">Payment:</span> {orderData.payment?.method} (Ref: {orderData.payment?.referenceNumber})</p>
                 </div>

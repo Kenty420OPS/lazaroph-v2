@@ -27,8 +27,9 @@ export default function PrivacyPage() {
           <li>Your payment proof screenshot</li>
           <li>If you ask us to return a payment, the account details you send us by email or chat</li>
           <li>
-            Your delivery region (for LBC) or your Metro Manila delivery city (for Lalamove)
+            Your delivery region (for LBC) or your Lalamove delivery city
           </li>
+          <li>Your landmark and any notes for the rider or courier</li>
           <li>Your order details, such as items, sizes, amounts and status</li>
           <li>
             The messages you send us in chat, and the name shown with your chat (guest chats show
@@ -67,6 +68,10 @@ export default function PrivacyPage() {
           behalf: Google Firebase (sign-in, database and file storage) and Vercel (website
           hosting and logs). We do not sell your data, and apart from these couriers and service
           providers we do not share it with anyone else.
+        </p>
+        <p className="text-sm leading-relaxed">
+          We also share the landmark and notes you give us with the courier to help complete
+          delivery.
         </p>
       </PolicySection>
 

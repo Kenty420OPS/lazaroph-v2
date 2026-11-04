@@ -191,7 +191,7 @@ export default function PolicyGate() {
               <li>
                 Replacement within 7 days for eligible items only. We send photos of your actual item before shipping. Check them and your size before we ship, and report any defective or wrong item immediately with photos or video and your order ID.
               </li>
-              <li>Delivery options are LBC, Lalamove (Metro Manila only) and free store pickup.</li>
+              <li>Delivery options are LBC, Lalamove (select Metro Manila, Rizal, Bulacan and Cavite cities) and free store pickup.</li>
             </ul>
           </section>
 
