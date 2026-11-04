@@ -8,6 +8,7 @@ import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { getUserErrorMessage } from "@/lib/user-error";
 import AdminManagement from "@/components/AdminManagement";
 import PaymentMethodsSettings from "@/components/PaymentMethodsSettings";
+import ShippingRatesSettings from "@/components/ShippingRatesSettings";
 import BrandsSettings from "@/components/BrandsSettings";
 import CategoriesSettings from "@/components/CategoriesSettings";
 import DateRangePicker, { type DateRange } from "@/components/admin/DateRangePicker";
@@ -950,7 +951,7 @@ export default function AdminPage() {
                 Admin Management
               </button>
             )}
-            {userRole === 'superadmin' && (
+            {(userRole === 'admin' || userRole === 'superadmin') && (
               <button
                 onClick={() => setActiveTab("settings")}
                 className={`shrink-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeTab === "settings" ? "bg-white text-black shadow-sm" : "text-neutral-400 hover:text-white"}`}
@@ -1861,8 +1862,11 @@ export default function AdminPage() {
           <AdminManagement currentUid={user.uid} />
         )}
 
-        {activeTab === "settings" && userRole === 'superadmin' && (
-          <PaymentMethodsSettings />
+        {activeTab === "settings" && (userRole === 'admin' || userRole === 'superadmin') && (
+          <div className="space-y-8">
+            <ShippingRatesSettings />
+            {userRole === 'superadmin' && <PaymentMethodsSettings />}
+          </div>
         )}
 
         {activeTab === "brands" && (

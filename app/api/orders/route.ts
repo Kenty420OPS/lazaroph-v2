@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { calculateShippingFee, VALID_COURIERS, VALID_REGIONS, findLalamoveCity } from "@/lib/shipping";
+import {
+  decideShippingFee,
+  DEFAULT_SHIPPING_RATES,
+  VALID_COURIERS,
+  VALID_REGIONS,
+  findLalamoveCity,
+  type ResolvedShippingRates,
+} from "@/lib/shipping";
+import { getShippingRatesForOrder } from "@/lib/shipping-rates-server";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import { isProductActive, getChargedPrice, hasSizeSystem, getTotalStock } from "@/lib/product";
 import { createRateLimiter } from "@/lib/rate-limit";
@@ -31,6 +39,17 @@ function sanitizeNotes(value: unknown): string {
     .replace(/\r\n?/g, "\n")
     .replace(CONTROL_CHARS, "")
     .trim();
+}
+
+// The client's expected LBC fee. Old bundles fall back to the existing
+// shippingFee field. Anything malformed is treated as absent, so the server
+// simply charges the current rate.
+function parseExpectedFee(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const fee = Number(trimmed);
+  return Number.isSafeInteger(fee) && fee >= 0 ? fee : null;
 }
 
 const orderLimiter = createRateLimiter({ maxRequests: 10, windowMs: 10 * 60 * 1000 });
@@ -280,7 +299,61 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Cart quantity must be a positive integer" }, { status: 400 });
     }
 
-    const shippingFee = calculateShippingFee(courier, region, totalQuantity);
+    // Read the current LBC rates fresh for every order. A Firestore failure
+    // must fail closed: charging hardcoded defaults here could silently
+    // undercharge or overcharge the customer.
+    let rateContext: ResolvedShippingRates | null = null;
+    if (courier === "LBC") {
+      try {
+        rateContext = await getShippingRatesForOrder();
+      } catch (rateError) {
+        console.error("Failed to load shipping rates for order:", rateError);
+        return NextResponse.json(
+          { success: false, error: "Could not load shipping rates. Please try again." },
+          { status: 503 }
+        );
+      }
+    }
+
+    const expectedShippingFeeRaw = formData.get("expectedShippingFee");
+    const expectedShippingFee = parseExpectedFee(
+      expectedShippingFeeRaw ?? formData.get("shippingFee")
+    );
+    const feeDecision = decideShippingFee({
+      courier,
+      region,
+      totalQuantity,
+      expectedFee: expectedShippingFee,
+      currentRates: rateContext?.rates ?? DEFAULT_SHIPPING_RATES,
+      previousRates: rateContext?.previousRates ?? null,
+      ratesChangedAt: rateContext?.ratesChangedAt ?? null,
+      now: Date.now(),
+    });
+
+    if (feeDecision.status === "conflict") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: feeDecision.message,
+          code: "SHIPPING_RATE_CHANGED",
+          shippingFee: feeDecision.shippingFee,
+          rates: feeDecision.rates,
+        },
+        { status: 409 }
+      );
+    }
+
+    const shippingFee = feeDecision.fee;
+    const lbcRate = feeDecision.lbcRate;
+    const rateGraceApplied = feeDecision.graceApplied;
+
+    if (rateGraceApplied) {
+      console.warn("Applied LBC shipping-rate grace window", {
+        totalQuantity,
+        expectedShippingFee,
+        currentShippingFee: feeDecision.fee,
+      });
+    }
 
     // Validate the selected payment method BEFORE validating/uploading the proof image
     let paymentMethodDoc: any = null;
@@ -349,6 +422,11 @@ export async function POST(request: Request) {
         shippingFee,
         landmark: courier === "Pickup" ? "" : landmark,
         notes: courier === "Pickup" ? "" : notes,
+        ...(courier === "LBC" && lbcRate !== null ? { lbcRate } : {}),
+        ...(courier === "LBC" && rateContext?.updatedAt
+          ? { ratesUpdatedAt: rateContext.updatedAt }
+          : {}),
+        ...(rateGraceApplied ? { rateGraceApplied: true } : {}),
       },
       payment: {
         method: paymentMethodDoc.name,

@@ -6,7 +6,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { calculateShippingFee, getLbcRate, SHIPPING_METHODS, LALAMOVE_CITY_GROUPS, type Courier, type Region } from "@/lib/shipping";
+import {
+  calculateShippingFee,
+  getLbcRate,
+  normalizeShippingRates,
+  DEFAULT_SHIPPING_RATES,
+  SHIPPING_METHODS,
+  LALAMOVE_CITY_GROUPS,
+  type Courier,
+  type Region,
+  type ShippingRates,
+} from "@/lib/shipping";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
 import SiteHeader from "@/components/home/SiteHeader";
 import SiteFooter from "@/components/home/SiteFooter";
@@ -45,6 +55,29 @@ export default function CheckoutPage() {
   const [methodsUnavailable, setMethodsUnavailable] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentImage, setPaymentImage] = useState<File | null>(null);
+  const [shippingRates, setShippingRates] = useState<ShippingRates>(
+    DEFAULT_SHIPPING_RATES
+  );
+
+  const fetchShippingRates = async () => {
+    try {
+      const res = await fetch("/api/shipping-rates", { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success && data.rates) {
+        setShippingRates(normalizeShippingRates(data.rates));
+      } else {
+        setShippingRates(DEFAULT_SHIPPING_RATES);
+      }
+    } catch (err) {
+      console.error("Failed to load shipping rates:", err);
+      setShippingRates(DEFAULT_SHIPPING_RATES);
+    }
+  };
+
+  useEffect(() => {
+    fetchShippingRates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,10 +112,10 @@ export default function CheckoutPage() {
   const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) || null;
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const lbcRate = getLbcRate(region);
+  const lbcRate = getLbcRate(region, shippingRates);
   const shippingFee =
     courier && (courier !== "LBC" || region)
-      ? calculateShippingFee(courier, region, totalQuantity)
+      ? calculateShippingFee(courier, region, totalQuantity, shippingRates)
       : 0;
   const lbcPairsLabel = totalQuantity === 1 ? "pair" : "pairs";
   const lbcFeeText = `₱${lbcRate.toLocaleString("en-PH")} x ${totalQuantity} ${lbcPairsLabel} = ₱${shippingFee.toLocaleString("en-PH")}`;
@@ -93,7 +126,7 @@ export default function CheckoutPage() {
   // changes (courier, region or total cart quantity).
   useEffect(() => {
     setLbcFeeAck(false);
-  }, [courier, region, totalQuantity]);
+  }, [courier, region, totalQuantity, shippingRates]);
 
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -262,6 +295,7 @@ export default function CheckoutPage() {
       if (courier === "LBC") {
         formData.append("region", region);
         formData.append("shippingFee", shippingFee.toString());
+        formData.append("expectedShippingFee", shippingFee.toString());
         formData.append("lbcFeeAcknowledged", lbcFeeAck ? "true" : "false");
       }
       if (courier === "Lalamove") {
@@ -300,18 +334,29 @@ export default function CheckoutPage() {
         body: formData,
       });
 
-      // Guard 1: surface HTTP-level errors before parsing body
+      const data = await res.json().catch(() => null);
+
+      // Guard 1: surface HTTP-level errors before using the body.
       if (!res.ok) {
-        let errMsg = "Checkout failed";
-        try {
-          errMsg = (await res.json()).error || errMsg;
-        } catch {}
-        throw new Error(errMsg);
+        if (res.status === 409) {
+          // Rates changed while this customer was checking out. Refresh the
+          // displayed rates, clear the stale acknowledgment and let them
+          // review the new total. No order was created and the cart is kept.
+          await fetchShippingRates();
+          setLbcFeeAck(false);
+          setError(
+            data?.error ||
+              "Shipping rates were updated. Please review your new total and submit again."
+          );
+          setStep(1);
+          window.scrollTo({ top: 0 });
+          return;
+        }
+        throw new Error(data?.error || "Checkout failed");
       }
 
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || "Checkout failed");
+      if (!data?.success) {
+        throw new Error(data?.error || "Checkout failed");
       }
 
       // Guard 2: only persist when we have a confirmed orderId

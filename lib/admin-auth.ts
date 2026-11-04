@@ -11,6 +11,7 @@ type VerifyResult = {
   error?: string;
   uid?: string;
   role?: string;
+  email?: string;
   status?: number;
 };
 
@@ -44,12 +45,16 @@ async function verifyRequest(
     }
     const uid = decodedToken.uid;
     const role = (decodedToken as any).role as string | undefined;
+    const email =
+      typeof decodedToken.email === "string" && decodedToken.email.trim() !== ""
+        ? decodedToken.email
+        : undefined;
 
     if (!isAllowed(role)) {
-      return { isAdmin: false, error: forbiddenMessage, uid, role, status: 403 };
+      return { isAdmin: false, error: forbiddenMessage, uid, role, email, status: 403 };
     }
 
-    return { isAdmin: true, uid, role, status: 200 };
+    return { isAdmin: true, uid, role, email, status: 200 };
   } catch (error: any) {
     console.error("verifyAdminRequest error:", error);
     return { isAdmin: false, error: "Unauthorized", status: 401 };

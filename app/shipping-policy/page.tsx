@@ -3,7 +3,6 @@ import Link from "next/link";
 import PolicyPage, { PolicySection } from "@/components/PolicyPage";
 import { STORE_INFO } from "@/lib/store-info";
 import { getBranch, DEFAULT_PICKUP_BRANCH_ID } from "@/lib/branches";
-import { getLbcRate } from "@/lib/shipping";
 
 export const metadata: Metadata = {
   title: "Shipping Policy | LAZAROPH",
@@ -11,9 +10,6 @@ export const metadata: Metadata = {
 
 export default function ShippingPolicyPage() {
   const branch = getBranch(DEFAULT_PICKUP_BRANCH_ID);
-  const luzonRate = getLbcRate("Luzon");
-  const visayasRate = getLbcRate("Visayas");
-  const mindanaoRate = getLbcRate("Mindanao");
 
   return (
     <PolicyPage title="Shipping Policy">
@@ -24,8 +20,8 @@ export default function ShippingPolicyPage() {
         <ul className="list-disc pl-6 space-y-2 text-sm leading-relaxed">
           <li>
             <strong>LBC</strong> &mdash; Nationwide delivery. LBC shipping fee is charged per
-            pair by region: Luzon ₱{luzonRate}, Visayas ₱{visayasRate}, Mindanao ₱{mindanaoRate}.
-            Delivery is usually 1-7 business days after payment verification.
+            pair based on your delivery region. The exact fee is shown at checkout before you
+            pay. Delivery is usually 1-7 business days after payment verification.
           </li>
           <li>
             <strong>Lalamove</strong> &mdash; Available in select Metro Manila, Rizal, Bulacan and Cavite cities. Orders are processed for
