@@ -23,15 +23,22 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isComingSoon =
+    process.env.COMING_SOON === "true" || process.env.COMING_SOON === "1";
+
   return (
     <html lang="en">
       <body>
         <AuthProvider>
           <CartProvider>
             {children}
-            <ChatWidgetWrapper />
-            <PolicyGate />
-            <SignInPrompt />
+            {!isComingSoon && (
+              <>
+                <ChatWidgetWrapper />
+                <PolicyGate />
+                <SignInPrompt />
+              </>
+            )}
           </CartProvider>
         </AuthProvider>
       </body>
