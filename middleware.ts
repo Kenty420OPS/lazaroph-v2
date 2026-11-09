@@ -19,63 +19,63 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. SEO routes: robots.txt and sitemap.xml
-  if (pathname === "/robots.txt" || pathname === "/sitemap.xml") {
-    const response = NextResponse.next();
-    if (isComingSoon) {
-      response.headers.set("X-Robots-Tag", "noindex, nofollow");
-    }
-    return response;
-  }
-
-  // 3. Admin routes: always accessible so admin can log in and manage the store
+  // 2. Admin routes: always accessible so admin can log in and manage the store
   if (pathname.startsWith("/portal") || pathname.startsWith("/admin")) {
     return NextResponse.next();
   }
 
-  // 4. API routes:
+  // 3. API routes:
   if (pathname.startsWith("/api")) {
-    // Always allow admin API routes
+    // If coming soon is OFF, allow all API traffic
+    if (!isComingSoon) {
+      return NextResponse.next();
+    }
+
+    // Always allow admin API routes (/api/admin/*)
     if (pathname.startsWith("/api/admin")) {
       return NextResponse.next();
     }
 
-    // Allow requests from the admin dashboard (e.g. brand/category dropdowns, admin chat)
     const referer = request.headers.get("referer") || "";
     const hasAdminReferer =
       referer.includes("/portal") || referer.includes("/admin");
     const hasAuth = !!request.headers.get("authorization");
 
+    // Strictly scoped: allow admin portal to fetch brands and categories dropdown data
     if (
-      hasAdminReferer ||
-      hasAuth ||
-      pathname.startsWith("/api/chat/send") ||
-      pathname.startsWith("/api/chat/image")
+      request.method === "GET" &&
+      hasAdminReferer &&
+      (pathname === "/api/brands" || pathname === "/api/categories")
     ) {
       return NextResponse.next();
     }
 
-    // Block public catalog & customer endpoints while COMING_SOON is on
-    if (isComingSoon) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Store is currently in coming soon mode.",
-        },
-        {
-          status: 503,
-          headers: {
-            "X-Robots-Tag": "noindex, nofollow",
-            "Cache-Control": "no-store",
-          },
-        }
-      );
+    // Strictly scoped: allow admin chat sending/uploads with verified auth and admin referer
+    if (
+      hasAdminReferer &&
+      hasAuth &&
+      (pathname === "/api/chat/send" || pathname === "/api/chat/image")
+    ) {
+      return NextResponse.next();
     }
 
-    return NextResponse.next();
+    // Block all public customer & catalog endpoints (/api/orders, /api/products, etc.)
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Store is currently in coming soon mode.",
+      },
+      {
+        status: 503,
+        headers: {
+          "X-Robots-Tag": "noindex, nofollow",
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 
-  // 5. When coming soon is OFF:
+  // 4. When coming soon is OFF:
   if (!isComingSoon) {
     // If someone visits /coming-soon directly when the site is live, redirect them to home
     if (pathname === "/coming-soon") {
@@ -84,7 +84,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 6. When coming soon is ON:
+  // 5. When coming soon is ON:
   // Allow direct access to /coming-soon
   if (pathname === "/coming-soon") {
     const response = NextResponse.next();
@@ -110,4 +110,3 @@ export const config = {
     "/((?!_next/static|_next/image).*)",
   ],
 };
-
